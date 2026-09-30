@@ -4,6 +4,7 @@ import {
   agents,
   decisions,
   inventoryItems,
+  experiments,
   jobs,
   locations,
   marketPrices,
@@ -73,6 +74,9 @@ import type {
   TradeRecord,
   UpsertServiceInput,
   WorldStore,
+  ExperimentPatch,
+  ExperimentRecord,
+  NewExperimentInput,
 } from "./types";
 
 const PG_UNIQUE_VIOLATION = "23505";
@@ -806,6 +810,59 @@ export class PostgresWorldStore implements WorldStore {
       .where(or(eq(payments.senderAgentId, agentId), eq(payments.receiverAgentId, agentId)))
       .orderBy(desc(payments.createdAt), desc(payments.id))
       .limit(limit);
+  }
+
+  async listPaymentsForAgents(agentIds: readonly string[]): Promise<PaymentRecord[]> {
+    if (agentIds.length === 0) return [];
+    const ids = [...agentIds];
+    return this.db
+      .select()
+      .from(payments)
+      .where(or(inArray(payments.senderAgentId, ids), inArray(payments.receiverAgentId, ids)))
+      .orderBy(asc(payments.createdAt), asc(payments.id));
+  }
+
+  async insertExperiment(input: NewExperimentInput): Promise<ExperimentRecord> {
+    const now = input.createdAt ?? new Date();
+    try {
+      const rows = await this.db
+        .insert(experiments)
+        .values({
+          id: input.id,
+          name: input.name,
+          config: input.config,
+          seed: input.seed,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning();
+      return first(rows, "experiment", input.id);
+    } catch (e) {
+      return asConflict(e, `experiment ${input.id} already exists`, { id: input.id });
+    }
+  }
+
+  async getExperiment(id: string): Promise<ExperimentRecord | null> {
+    const rows = await this.db.select().from(experiments).where(eq(experiments.id, id)).limit(1);
+    return rows[0] ?? null;
+  }
+
+  async listExperiments(
+    filter: { readonly status?: ExperimentRecord["status"] } = {},
+  ): Promise<ExperimentRecord[]> {
+    const q = this.db.select().from(experiments);
+    return (filter.status ? q.where(eq(experiments.status, filter.status)) : q).orderBy(
+      desc(experiments.createdAt),
+    );
+  }
+
+  async updateExperiment(id: string, patch: ExperimentPatch): Promise<ExperimentRecord> {
+    const rows = await this.db
+      .update(experiments)
+      .set({ ...defined({ ...patch }), updatedAt: new Date() })
+      .where(eq(experiments.id, id))
+      .returning();
+    return first(rows, "experiment", id);
   }
 
   async sumSpentSince(agentId: string, since: Date): Promise<bigint> {

@@ -51,6 +51,9 @@ import type {
   TradeRecord,
   UpsertServiceInput,
   WorldStore,
+  ExperimentPatch,
+  ExperimentRecord,
+  NewExperimentInput,
 } from "./types";
 
 export interface InMemoryWorldStoreOptions {
@@ -124,6 +127,7 @@ export class InMemoryWorldStore implements WorldStore {
   private readonly intents = new Map<string, PaymentIntentRecord>();
   private readonly payments = new Map<string, PaymentRecord>();
   private readonly trades = new Map<string, TradeRecord>();
+  private readonly experiments = new Map<string, ExperimentRecord>();
   private readonly decisions = new Map<string, DecisionRecord>();
   private readonly events: WorldEvent[] = [];
   private readonly reputation = new Map<string, ReputationEventRecord>();
@@ -778,6 +782,62 @@ export class InMemoryWorldStore implements WorldStore {
       .slice(-limit)
       .reverse()
       .map(clone);
+  }
+
+  async listPaymentsForAgents(agentIds: readonly string[]): Promise<PaymentRecord[]> {
+    const ids = new Set(agentIds);
+    return [...this.payments.values()]
+      .filter(
+        (p) =>
+          (p.senderAgentId !== null && ids.has(p.senderAgentId)) ||
+          (p.receiverAgentId !== null && ids.has(p.receiverAgentId)),
+      )
+      .map(clone);
+  }
+
+  async insertExperiment(input: NewExperimentInput): Promise<ExperimentRecord> {
+    if (this.experiments.has(input.id)) {
+      throw new AigentiaError("CONFLICT", `experiment ${input.id} already exists`);
+    }
+    const now = input.createdAt ?? this.clock();
+    const record: ExperimentRecord = {
+      id: input.id,
+      name: input.name,
+      status: "draft",
+      config: clone(input.config),
+      seed: input.seed,
+      startedAt: null,
+      endsAt: null,
+      finishedAt: null,
+      startTick: null,
+      endTick: null,
+      results: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.experiments.set(record.id, record);
+    return clone(record);
+  }
+
+  async getExperiment(id: string): Promise<ExperimentRecord | null> {
+    const e = this.experiments.get(id);
+    return e ? clone(e) : null;
+  }
+
+  async listExperiments(
+    filter: { readonly status?: ExperimentRecord["status"] } = {},
+  ): Promise<ExperimentRecord[]> {
+    return [...this.experiments.values()]
+      .filter((e) => filter.status === undefined || e.status === filter.status)
+      .reverse()
+      .map(clone);
+  }
+
+  async updateExperiment(id: string, patch: ExperimentPatch): Promise<ExperimentRecord> {
+    const e = this.experiments.get(id);
+    if (!e) throw notFound("experiment", id);
+    Object.assign(e, clone(patch), { updatedAt: this.clock() });
+    return clone(e);
   }
 
   async sumSpentSince(agentId: string, since: Date): Promise<bigint> {

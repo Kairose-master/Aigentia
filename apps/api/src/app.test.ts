@@ -1,4 +1,4 @@
-import { x402PaymentRequiredSchema } from "@aigentia/protocol";
+import { experimentDto, x402PaymentRequiredSchema } from "@aigentia/protocol";
 import { buildTestWorld, type TestWorld } from "@aigentia/game-engine/testing";
 import {
   agentProfileDto,
@@ -364,21 +364,65 @@ describe("admin routes", () => {
     expect(stop.json<{ running: boolean }>().running).toBe(false);
   });
 
-  it("answers 501 for experiment lifecycle routes", async () => {
-    for (const url of [
-      "/api/admin/experiments",
-      "/api/admin/experiments/exp_1/start",
-      "/api/admin/experiments/exp_1/finish",
-    ]) {
+  it("runs an experiment and refuses human intervention while it runs", async () => {
+    const headers = { "x-admin-token": ADMIN_TOKEN };
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/admin/experiments",
+      headers,
+      payload: {
+        name: "API Duel",
+        durationHours: 1,
+        agentCount: 2,
+        startingCapitalXrp: 5,
+        objectiveDistribution: [
+          { objective: "maximize_information", count: 1 },
+          { objective: "profitable_service", count: 1 },
+        ],
+        seed: "api-duel",
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    const draft = experimentDto.parse(created.json());
+    expect(draft.status).toBe("draft");
+
+    const started = await app.inject({
+      method: "POST",
+      url: `/api/admin/experiments/${draft.id}/start`,
+      headers,
+    });
+    expect(started.statusCode).toBe(200);
+    expect(experimentDto.parse(started.json()).agentCount).toBe(2);
+
+    for (const [url, payload] of [
+      ["/api/admin/agents", { name: "INTRUDER-1", objective: "survive" }],
+      ["/api/admin/sim/stop", undefined],
+      ["/api/admin/sim/tick", undefined],
+    ] as const) {
       const res = await app.inject({
         method: "POST",
         url,
-        headers: { "x-admin-token": ADMIN_TOKEN },
-        payload: {},
+        headers,
+        ...(payload ? { payload } : {}),
       });
-      expect(res.statusCode).toBe(501);
-      expect(res.json<{ message: string }>().message).toMatch(/Phase 5/);
+      expect(res.statusCode, url).toBe(409);
+      expect(res.json<{ message: string }>().message).toMatch(/human intervention is disabled/);
     }
+
+    await world.runtime.sim.runTick();
+    const finished = await app.inject({
+      method: "POST",
+      url: `/api/admin/experiments/${draft.id}/finish`,
+      headers,
+    });
+    expect(finished.statusCode).toBe(200);
+    const done = experimentDto.parse(finished.json());
+    expect(done.status).toBe("aborted");
+    expect(done.results?.wealthLeaderboard).toHaveLength(2);
+    const listed = await app.inject({ method: "GET", url: `/api/experiments/${draft.id}` });
+    expect(experimentDto.parse(listed.json()).results?.networkGraph.nodes).toHaveLength(2);
+    const stop = await app.inject({ method: "POST", url: "/api/admin/sim/stop", headers });
+    expect(stop.statusCode).toBe(200);
   });
 });
 

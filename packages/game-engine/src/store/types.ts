@@ -1,8 +1,10 @@
+import type { ExperimentConfig } from "@aigentia/protocol";
 import type {
   agentSnapshots,
   agents,
   decisions,
   inventoryItems,
+  experiments,
   jobs,
   locations,
   marketPrices,
@@ -47,6 +49,7 @@ export type JobRecord = typeof jobs.$inferSelect;
 export type PaymentIntentRecord = typeof paymentIntents.$inferSelect;
 export type PaymentRecord = typeof payments.$inferSelect;
 export type TradeRecord = typeof trades.$inferSelect;
+export type ExperimentRecord = typeof experiments.$inferSelect;
 export type DecisionRecord = typeof decisions.$inferSelect;
 export type ReputationEventRecord = typeof reputationEvents.$inferSelect;
 export type AgentSnapshotRecord = typeof agentSnapshots.$inferSelect;
@@ -337,6 +340,21 @@ export interface EventFilter {
   readonly agentId?: string;
 }
 
+export interface NewExperimentInput {
+  readonly id: string;
+  readonly name: string;
+  readonly config: ExperimentConfig;
+  readonly seed: string;
+  readonly createdAt?: Date;
+}
+
+export type ExperimentPatch = Partial<
+  Pick<
+    ExperimentRecord,
+    "status" | "startedAt" | "endsAt" | "finishedAt" | "startTick" | "endTick" | "results"
+  >
+>;
+
 export interface TradeFilter {
   readonly tick?: number;
   readonly counterparty?: "agent" | "market";
@@ -428,6 +446,15 @@ export interface WorldStore {
   updatePayment(id: string, patch: PaymentPatch): Promise<PaymentRecord>;
   getPayment(id: string): Promise<PaymentRecord | null>;
   listPaymentsForAgent(agentId: string, limit?: number): Promise<PaymentRecord[]>;
+  /** Every payment sent or received by any of the agents (analytics; unbounded). */
+  listPaymentsForAgents(agentIds: readonly string[]): Promise<PaymentRecord[]>;
+
+  insertExperiment(input: NewExperimentInput): Promise<ExperimentRecord>;
+  getExperiment(id: string): Promise<ExperimentRecord | null>;
+  listExperiments(filter?: {
+    readonly status?: ExperimentRecord["status"];
+  }): Promise<ExperimentRecord[]>;
+  updateExperiment(id: string, patch: ExperimentPatch): Promise<ExperimentRecord>;
   /** Outgoing XRP the agent sent (status submitted or validated) created at or after `since`. */
   sumSpentSince(agentId: string, since: Date): Promise<bigint>;
 

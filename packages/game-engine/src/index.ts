@@ -79,3 +79,16 @@ export { SellerGate } from "./x402-seller";
 export type { SellerGateDeps, SellerRequest, SellerResponse } from "./x402-seller";
 export { X402ServicePurchaser } from "./x402-purchaser";
 export type { X402ServicePurchaserDeps } from "./x402-purchaser";
+export {
+  GENESIS_24H,
+  createExperiment,
+  startExperiment,
+  finishExperiment,
+  finishDueExperiments,
+  computeExperimentResults,
+  experimentAgentNames,
+  objectiveSchedule,
+  gini,
+  topShare,
+} from "./experiments";
+export type { ExperimentDeps } from "./experiments";

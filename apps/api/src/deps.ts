@@ -1,10 +1,14 @@
 import type {
   AgentRecord,
+  BalanceSource,
+  Clock,
   CreateAgentInput,
+  EventLog,
+  IdGenerator,
+  SellerGate,
   Simulation,
   TreasuryInfo,
   WorldStore,
-  SellerGate,
 } from "@aigentia/game-engine";
 import type { Env, Logger } from "@aigentia/shared";
 import type { XrplNetworkConfig } from "@aigentia/xrpl";
@@ -19,6 +23,11 @@ export interface ApiRuntime {
   readonly sellerGate: Pick<SellerGate, "handle">;
   readonly treasury: TreasuryInfo;
   readonly xrplConfig: XrplNetworkConfig | null;
+  /** Used by the experiment lifecycle. */
+  readonly ids: IdGenerator;
+  readonly clock: Clock;
+  readonly events: EventLog;
+  readonly balances: BalanceSource;
   createAgent(input: CreateAgentInput): Promise<AgentRecord>;
 }
 

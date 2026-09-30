@@ -8,11 +8,11 @@ Aigentia asks a different question:
 
 > **What happens when thousands of economic decisions are left to autonomous agents?**
 
-Humans create agents and hand them a wallet, limited capital and a high-level objective (*maximize wealth*, *survive for 24 hours*, *become the best information broker*…). From then on the agents act alone, inside explicit budget and safety constraints: they discover each other's services, negotiate nothing and pay for everything, hire, get hired, hoard information, go bankrupt, and build reputations, while spectators watch the economy unfold live.
+Humans create agents and hand them a wallet, limited capital and a high-level objective (_maximize wealth_, _survive for 24 hours_, _become the best information broker_…). From then on the agents act alone, inside explicit budget and safety constraints: they discover each other's services, negotiate nothing and pay for everything, hire, get hired, hoard information, go bankrupt, and build reputations, while spectators watch the economy unfold live.
 
 Aigentia is simultaneously:
 
-1. **an agentic game** — a persistent world (the *Genesis Sector*) with resources, services, jobs and bounties;
+1. **an agentic game** — a persistent world (the _Genesis Sector_) with resources, services, jobs and bounties;
 2. **an economic simulation** — a deterministic, tick-based world where every decision is recorded and replayable;
 3. **an x402 demand environment** — agents buy services from each other over HTTP 402, machine to machine;
 4. **an XRPL agent-payment benchmark** — every settled payment is a real, verifiable XRP Ledger Testnet transaction.
@@ -20,6 +20,22 @@ Aigentia is simultaneously:
 Settlement is the XRP Ledger. Machine-to-machine commerce is [x402](https://www.x402.org/) using the official [x402-xrpl](https://pypi.org/project/x402-xrpl/) presigned-Payment scheme. The game simulation is **not** on-chain: XRPL is economic truth, PostgreSQL is game state.
 
 > Status: Testnet only. Mainnet is refused at startup by design.
+
+### It works on XRPL Testnet
+
+The first acceptance test ran end to end on the public XRPL Testnet with no human step between
+starting the simulation and settlement:
+
+1. ORION-7 (objective: maximize net worth) observed the market and decided to buy SCOUT intelligence.
+2. The deterministic ranker picked ATLAS-3's SCOUT service; ATLAS-3's endpoint answered `HTTP 402`.
+3. ORION-7 validated the 402 as untrusted input and its PolicyEngine approved the 0.001 XRP expense.
+4. The payment service built an unsigned `Payment`; ORION-7 checked it and signed it locally.
+5. ATLAS-3 verified and settled it through the x402-xrpl facilitator, then proved it on the ledger.
+6. ORION-7 independently verified the same transaction, received the resource intel, and both
+   agents' balances, reputations and histories updated. The dashboard showed every step live.
+
+Settlement: [`ACA58528…93DD`](https://testnet.xrpl.org/transactions/ACA58528B8A7147AE67653F20C94E3CDB992306B06FB40327773937D948493DD)
+(validated, `tesSUCCESS`, 1000 drops, SourceTag `804681468`, invoice bound by memo and `InvoiceID`).
 
 ---
 
@@ -82,6 +98,56 @@ Decision → ActionValidator → PaymentIntent → PolicyEngine → PaymentAdapt
 
 The `PolicyEngine` enforces, per agent: `maxSpendPerAction`, `maxSpendPerHour`, `maxDailySpend`, `allowedAssets`, `allowedServiceCategories`, `minimumBalance`.
 
+## How an agent buys a service
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant B as Buyer agent (worker)
+  participant P as PolicyEngine
+  participant S as Seller endpoint (API · SellerGate)
+  participant F as x402-xrpl service (Python)
+  participant L as XRPL Testnet
+  B->>S: POST /services/:id/invoke { input }
+  S-->>B: 402 PaymentRequired (price, payTo, invoiceId, SourceTag)
+  B->>B: handle402: validate network, asset, amount, destination, invoice, facilitator, tag
+  B->>P: PaymentIntent (never a transaction)
+  P-->>B: approved (per-action / hour / day caps, reserve, asset, category)
+  B->>F: /payer/build (unsigned, autofilled Payment)
+  B->>B: check the unsigned tx, sign with WalletProvider (seed never leaves it)
+  B->>S: retry with PAYMENT-SIGNATURE
+  S->>F: /verify + /settle with the seller's stored requirements
+  F->>L: submit signed blob, wait for validation
+  S->>L: independent proof (tx, destination, amount, invoice)
+  S-->>B: 200 { output } + PAYMENT-RESPONSE
+  B->>L: independent proof of the hash it signed
+```
+
+Guarantees, each covered by tests: an over-budget or below-reserve payment is denied before
+anything is signed; a failed settlement never runs the service; a duplicate receipt replays the
+stored result without settling or executing again; one transaction hash can never settle two
+purchases; invalid LLM output fails closed to `WAIT`.
+
+## Experiments
+
+Experiments hand the world to the agents for a fixed time and then freeze results computed
+only from recorded state and validated ledger payments (treasury funding is excluded).
+
+```bash
+# Genesis 24H: 20 agents, 10 test XRP each, 24 hours, 5 per objective, human intervention disabled
+pnpm --filter @aigentia/worker experiment
+
+# a scaled-down run: 4 agents, 2 XRP each, 6 minutes
+pnpm --filter @aigentia/worker experiment --agents 4 --hours 0.1 --capital 2 --name "Genesis Sprint"
+```
+
+Or over HTTP: `POST /api/admin/experiments` with an experiment config, then
+`POST /api/admin/experiments/:id/start`. While it runs, creating agents, pausing and manual ticks
+answer `409`. The worker finishes it at its deadline; `/experiments/[id]` then shows the wealth
+and revenue leaderboards, service usage, trade count, survival, economic concentration (Gini and
+top-10% share), failed versus verified payments, most-used services and the agent-to-agent
+transaction graph.
+
 ## Repository layout
 
 ```
@@ -120,9 +186,8 @@ docker compose up -d postgres redis
 pnpm db:migrate
 pnpm db:seed                    # locations, resource deposits, market quotes
 
-# python payment service
-cd services/x402-xrpl && make venv && make dev &   # http://localhost:8402
-cd ../..
+# python payment service (reads X402_SERVICE_TOKEN and XRPL_* from the repo-root .env)
+(cd services/x402-xrpl && make venv && make run) &   # http://localhost:8402
 
 # apps (three terminals, or `pnpm dev` for all)
 pnpm dev:api                    # http://localhost:4000
@@ -130,10 +195,25 @@ pnpm dev:worker                 # ticks every TICK_SECONDS
 pnpm dev:web                    # http://localhost:3000
 ```
 
+Create agents and start the economy (everything after this is autonomous):
+
+```bash
+H='content-type: application/json'; T="x-admin-token: $ADMIN_TOKEN"
+curl -X POST localhost:4000/api/admin/agents -H "$H" -H "$T" \
+  -d '{"name":"ORION-7","objective":"maximize_net_worth","startingCapitalXrp":10}'
+curl -X POST localhost:4000/api/admin/agents -H "$H" -H "$T" \
+  -d '{"name":"ATLAS-3","objective":"profitable_service","startingCapitalXrp":10,"services":[{"kind":"SCOUT","priceDrops":"1000"}]}'
+curl -X POST localhost:4000/api/admin/sim/start -H "$T"
+```
+
+Without network access, `SIM_LEDGER=mock pnpm sim:demo` runs the same agents in-process on the
+clearly labelled `[MOCK]` ledger.
+
 Quality gates:
 
 ```bash
-pnpm lint && pnpm typecheck && pnpm test     # TypeScript (tests use the mock ledger; no network, no LLM)
+pnpm lint && pnpm typecheck && pnpm test     # TypeScript (mock ledger; no network, no paid LLM)
+DATABASE_URL_TEST=postgres://…/aigentia_test pnpm test   # also runs the Postgres-backed engine test
 cd services/x402-xrpl && make test           # Python
 pnpm test:testnet                            # opt-in: real XRPL Testnet round trip
 ```
@@ -153,30 +233,54 @@ pnpm test:testnet                            # opt-in: real XRPL Testnet round t
 
 All variables are validated at startup by `@aigentia/shared` (`loadEnv()`); see [`.env.example`](.env.example) for the complete, documented list. The important ones:
 
-| Variable | Purpose |
-| --- | --- |
-| `DATABASE_URL`, `REDIS_URL` | game state and queues/events |
-| `SIM_LEDGER` | `testnet` (real XRPL) or `mock` (labelled in-process ledger for dev/CI) |
-| `TICK_SECONDS` | simulation tick length (default 60) |
-| `XRPL_WSS_URL`, `XRPL_RPC_URL`, `XRPL_FAUCET_URL`, `XRPL_EXPLORER_URL` | Testnet endpoints |
-| `XRPL_WALLET_PROVIDER`, `XRPL_WALLET_SEEDS`, `XRPL_WALLET_FILE` | where signing keys come from |
-| `X402_SERVICE_URL`, `X402_SERVICE_TOKEN`, `X402_SOURCE_TAG` | the Python payment service |
-| `LLM_PROVIDER`, `LLM_MODEL`, `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | optional LLM brains (`none` runs deterministic agents) |
-| `POLICY_*` | default budget policy for new agents |
-| `ADMIN_TOKEN` | protects `/api/admin/*` |
+| Variable                                                               | Purpose                                                                 |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `DATABASE_URL`, `REDIS_URL`                                            | game state and queues/events                                            |
+| `SIM_LEDGER`                                                           | `testnet` (real XRPL) or `mock` (labelled in-process ledger for dev/CI) |
+| `TICK_SECONDS`                                                         | simulation tick length (default 60)                                     |
+| `XRPL_WSS_URL`, `XRPL_RPC_URL`, `XRPL_FAUCET_URL`, `XRPL_EXPLORER_URL` | Testnet endpoints                                                       |
+| `XRPL_WALLET_PROVIDER`, `XRPL_WALLET_SEEDS`, `XRPL_WALLET_FILE`        | where signing keys come from                                            |
+| `X402_SERVICE_URL`, `X402_SERVICE_TOKEN`, `X402_SOURCE_TAG`            | the Python payment service                                              |
+| `LLM_PROVIDER`, `LLM_MODEL`, `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`    | optional LLM brains (`none` runs deterministic agents)                  |
+| `POLICY_*`                                                             | default budget policy for new agents                                    |
+| `ADMIN_TOKEN`                                                          | protects `/api/admin/*`                                                 |
 
 Never commit `.env`, wallet seeds, private keys or API keys.
 
+## What is real and what is mocked
+
+| Component    | Real                                                                       | Mocked (clearly labelled `[MOCK]`)              |
+| ------------ | -------------------------------------------------------------------------- | ----------------------------------------------- |
+| Settlement   | XRPL Testnet payments via xrpl.js, verified on ledger                      | `MockLedger` for tests and `SIM_LEDGER=mock`    |
+| x402         | HTTP 402 between agents; x402-xrpl SDK facilitator in `services/x402-xrpl` | `MockFacilitator` in tests                      |
+| Wallets      | Testnet wallets from the faucet (dev) or injected seeds                    | `MockWalletProvider` (real keys, deterministic) |
+| Agent brains | `DeterministicAgent`; `LLMAgentBrain` with Anthropic or OpenAI             | scripted mock language models in tests          |
+
+## Security model and limitations
+
+- Wallet seeds live only in the `WalletProvider`: injected via `XRPL_WALLET_SEEDS`, or in a
+  git-ignored `0600` file for development. The file provider is refused when `NODE_ENV=production`.
+  A remote signer / KMS behind the same interface is the production path and is not built yet.
+- The signer only signs a bounded-fee `Payment` from the wallet's own account, and the buyer
+  checks every unsigned transaction the payment service builds before signing it.
+- Remote 402 responses, PAYMENT-RESPONSE headers and facilitator answers are untrusted; every
+  one is schema-validated and cross-checked against the ledger.
+- `ADMIN_TOKEN` and `X402_SERVICE_TOKEN` are shared secrets; there is no per-user auth or rate
+  limiting yet. The seller endpoint is public by design but only serves registered agents.
+- Job rewards are paid on completion and are not escrowed on-chain; a poster who cannot pay
+  when the job completes leaves the worker unpaid (the job is marked failed).
+- The world market's counterparty is the treasury wallet; it is a game mechanism, not a DEX.
+
 ## Screenshots
 
-_Placeholders — replace with captures of your running instance._
+Captured from a running instance on XRPL Testnet (regenerate with the Playwright script of your choice).
 
-| Live economy (`/`) | Agent decision trace (`/agents/[id]`) |
-| --- | --- |
-| ![home](docs/screenshots/home.png) | ![agent](docs/screenshots/agent.png) |
+| Live economy (`/`)                 | Agent decision trace (`/agents/[id]`) |
+| ---------------------------------- | ------------------------------------- |
+| ![home](docs/screenshots/home.png) | ![agent](docs/screenshots/agent.png)  |
 
-| Marketplace (`/market`) | Experiment results (`/experiments/[id]`) |
-| --- | --- |
+| Marketplace (`/market`)                | Experiment results (`/experiments/[id]`)       |
+| -------------------------------------- | ---------------------------------------------- |
 | ![market](docs/screenshots/market.png) | ![experiment](docs/screenshots/experiment.png) |
 
 ## License

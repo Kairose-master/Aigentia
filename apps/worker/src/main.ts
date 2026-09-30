@@ -4,6 +4,7 @@ import { Queue, Worker, type Job } from "bullmq";
 import { createWorkerContainer, type WorkerContainer } from "./container";
 import { indexLedger } from "./indexer";
 import { rehydrateMockBalances } from "./mock-balances";
+import { finishDueExperiments } from "@aigentia/game-engine";
 import { runOneTick, type TickSummary } from "./tick-runner";
 
 export const SIMULATION_QUEUE = "aigentia-simulation";
@@ -35,6 +36,11 @@ async function processJob(
     // [MOCK] agents created by the API since startup exist only in that process's ledger.
     await rehydrateMockBalances(container.runtime, container.store, container.logger);
     const outcome = await runOneTick(container);
+    if (!outcome.skipped) {
+      const finished = await finishDueExperiments(container.runtime);
+      for (const e of finished)
+        container.logger.info({ experimentId: e.id }, "experiment finished");
+    }
     return outcome.skipped
       ? { kind: "tick", skipped: true, reason: outcome.reason }
       : { kind: "tick", skipped: false, summary: outcome.summary };

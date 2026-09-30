@@ -162,11 +162,11 @@ export class WorldStoreReadModel implements ReadModel {
   }
 
   async listExperiments(): Promise<ExperimentRecord[]> {
-    return [];
+    return this.store.listExperiments();
   }
 
-  async getExperiment(): Promise<ExperimentRecord | null> {
-    return null;
+  async getExperiment(id: string): Promise<ExperimentRecord | null> {
+    return this.store.getExperiment(id);
   }
 
   async countAgentsByExperiment(): Promise<Map<string, number>> {

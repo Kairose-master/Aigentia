@@ -10,7 +10,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "demo": "tsx src/scripts/demo.ts"
+    "demo": "tsx src/scripts/demo.ts",
+    "experiment": "tsx src/scripts/experiment.ts"
   },
   "dependencies": {
     "@aigentia/agent-core": "workspace:*",
