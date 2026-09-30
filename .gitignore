@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+.next/
+out/
+*.tsbuildinfo
+coverage/
+
+# env & secrets — NEVER commit wallet seeds, private keys or API keys
+.env
+.env.*
+!.env.example
+.aigentia/
+**/wallets*.json
+!**/wallets.example.json
+
+# python
+services/x402-xrpl/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# tooling
+.turbo/
+playwright-report/
+test-results/
+.DS_Store
+*.log

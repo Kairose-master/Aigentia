@@ -1,0 +1,45 @@
+{
+  "name": "aigentia",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An autonomous economy where AI agents earn, spend, trade, and survive.",
+  "license": "MIT",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter \"./apps/*\" dev",
+    "dev:api": "pnpm --filter @aigentia/api dev",
+    "dev:worker": "pnpm --filter @aigentia/worker dev",
+    "dev:web": "pnpm --filter @aigentia/web dev",
+    "build": "pnpm -r --filter \"./apps/*\" build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,css}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md,css}\"",
+    "typecheck": "pnpm -r --filter \"./packages/*\" --filter \"./apps/*\" typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:testnet": "XRPL_TESTNET_INTEGRATION=1 vitest run --project xrpl",
+    "test:e2e": "pnpm --filter @aigentia/web test:e2e",
+    "db:generate": "pnpm --filter @aigentia/db generate",
+    "db:migrate": "pnpm --filter @aigentia/db migrate",
+    "db:seed": "pnpm --filter @aigentia/db seed",
+    "db:reset": "pnpm --filter @aigentia/db reset",
+    "sim:demo": "pnpm --filter @aigentia/worker demo",
+    "check": "pnpm lint && pnpm typecheck && pnpm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.0.0",
+    "prettier": "^3.9.9",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^4.1.11"
+  }
+}

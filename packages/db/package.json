@@ -1,0 +1,31 @@
+{
+  "name": "@aigentia/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Drizzle ORM schema, client and migrations for Aigentia's PostgreSQL game state.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "generate": "drizzle-kit generate",
+    "migrate": "tsx src/scripts/migrate.ts",
+    "seed": "tsx src/scripts/seed.ts",
+    "reset": "tsx src/scripts/reset.ts",
+    "studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@aigentia/protocol": "workspace:*",
+    "@aigentia/shared": "workspace:*",
+    "drizzle-orm": "^0.45.3",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.16.0",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15"
+  }
+}

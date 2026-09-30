@@ -1,0 +1,18 @@
+{
+  "name": "@aigentia/protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Zod-validated contracts: agent actions, observations, world events, payment intents, x402 wire types and API DTOs.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aigentia/shared": "workspace:*",
+    "zod": "^4.3.3"
+  }
+}
