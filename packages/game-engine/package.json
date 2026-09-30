@@ -1,0 +1,26 @@
+{
+  "name": "@aigentia/game-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic tick-based world simulation for the Genesis Sector: observation builder, action validation/execution, services, jobs, market and settlement.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aigentia/agent-core": "workspace:*",
+    "@aigentia/db": "workspace:*",
+    "@aigentia/economy": "workspace:*",
+    "@aigentia/protocol": "workspace:*",
+    "@aigentia/shared": "workspace:*",
+    "@aigentia/xrpl": "workspace:*",
+    "drizzle-orm": "^0.45.3",
+    "zod": "^4.3.3"
+  },
+  "devDependencies": {}
+}

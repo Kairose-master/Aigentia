@@ -17,7 +17,7 @@ shared ─┬─ protocol ─┬─ db
         │            ├─ agent-core
         │            ├─ xrpl ──────┐
         │            ├─ x402 ──────┤  (x402 depends on xrpl for signing)
-        │            └─ economy ───┘  (economy depends on xrpl + x402 adapters' interfaces only)
+        │            └─ economy ───┘  (economy depends on xrpl; x402 depends on economy for the PolicyEngine)
         └──────────── game-engine  (depends on db, economy, agent-core, xrpl, x402)
 apps/api, apps/worker → game-engine (+ everything)     apps/web → protocol (DTO types only)
 services/x402-xrpl (Python) ← HTTP ← packages/x402

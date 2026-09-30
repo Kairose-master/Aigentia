@@ -1,0 +1,22 @@
+{
+  "name": "@aigentia/xrpl",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "XRPL Testnet integration: client, wallet provider, balance reader, payment verifier, transaction indexer, and the clearly labelled MockLedger.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aigentia/protocol": "workspace:*",
+    "@aigentia/shared": "workspace:*",
+    "xrpl": "^5.3.0",
+    "zod": "^4.3.3"
+  },
+  "devDependencies": {}
+}

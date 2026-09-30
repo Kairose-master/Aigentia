@@ -1,0 +1,24 @@
+{
+  "name": "@aigentia/agent-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AgentBrain abstraction: DeterministicAgent for reproducible simulations and LLMAgentBrain over the Vercel AI SDK.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.69",
+    "@ai-sdk/openai": "^4.0.82",
+    "@aigentia/protocol": "workspace:*",
+    "@aigentia/shared": "workspace:*",
+    "ai": "^6.0.297",
+    "zod": "^4.3.3"
+  },
+  "devDependencies": {}
+}
