@@ -1,0 +1,8 @@
+# Runtime dependencies for services/x402-xrpl. Pins mirror pyproject.toml.
+x402-xrpl==0.3.4
+xrpl-py>=5.2
+fastapi>=0.115,<0.116
+uvicorn[standard]>=0.30,<0.31
+pydantic>=2,<3
+httpx>=0.28.1
+python-dotenv>=1,<2
