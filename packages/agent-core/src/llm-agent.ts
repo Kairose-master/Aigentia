@@ -25,7 +25,7 @@ import { compactObservation } from "./observation-summary";
 export interface LLMAgentBrainOptions {
   /** Vercel AI SDK language model (provider-neutral). */
   model: LanguageModel;
-  /** Recorded on decision traces, e.g. "anthropic/claude-sonnet-4-5". */
+  /** Recorded on decision traces, e.g. "anthropic/claude-fable-5-1". */
   modelId: string;
   worldSeed: string;
   temperature?: number;

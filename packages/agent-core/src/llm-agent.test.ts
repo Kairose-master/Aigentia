@@ -237,3 +237,16 @@ describe("providers", () => {
     if (typeof openai !== "string") expect(openai.modelId).toBe("gpt-test");
   });
 });
+
+describe("provider models", () => {
+  it("builds spec-v3 models the installed ai SDK accepts, without any network call", async () => {
+    const { createLanguageModel } = await import("./providers");
+    for (const provider of ["anthropic", "openai"] as const) {
+      const model = createLanguageModel({ provider, modelId: "test-model", apiKey: "test-key" });
+      expect(typeof model === "object" && model.specificationVersion).toBe("v3");
+    }
+    expect(() => createLanguageModel({ provider: "anthropic", modelId: "x" })).toThrow(
+      /ANTHROPIC_API_KEY/,
+    );
+  });
+});

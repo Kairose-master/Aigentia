@@ -201,11 +201,11 @@ importers:
   packages/agent-core:
     dependencies:
       '@ai-sdk/anthropic':
-        specifier: ^4.0.69
-        version: 4.0.69(zod@4.6.5)
+        specifier: ^3.0.125
+        version: 3.0.125(zod@4.6.5)
       '@ai-sdk/openai':
-        specifier: ^4.0.82
-        version: 4.0.82(zod@4.6.5)
+        specifier: ^3.0.121
+        version: 3.0.121(zod@4.6.5)
       '@aigentia/protocol':
         specifier: workspace:*
         version: link:../protocol
@@ -352,9 +352,9 @@ importers:
 
 packages:
 
-  '@ai-sdk/anthropic@4.0.69':
-    resolution: {integrity: sha512-8qO73NwcxpUb4onZ4V85RGZbXYSyy2AhOw4lgs1BF8MY0iGk9ti00Qt//y1wxCMXK0IvB2YGDcA0vxigWfi+/Q==}
-    engines: {node: '>=22'}
+  '@ai-sdk/anthropic@3.0.125':
+    resolution: {integrity: sha512-oCBy62UBmf94aptAkb+0kB5ac4503cta2SXEGAGNweEscRmeSWsDVx8YWVdJ5vZqFoyJdyWTrKrZ2J9IodWbwA==}
+    engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
@@ -364,9 +364,9 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/openai@4.0.82':
-    resolution: {integrity: sha512-BnKkeYMVWpdWrEQwXUO7B5ctAKZjrUFBOrLa9GBgvLD7TntoKOg5+HwjaNBq7z8uO+ViOQu3olZuS85Tv5EvtA==}
-    engines: {node: '>=22'}
+  '@ai-sdk/openai@3.0.121':
+    resolution: {integrity: sha512-3ZBWdXcwC35W6Gj4FbhogEmAvVxyArzGEHvoADWiSMJffyirKYE30Yy5oM0Ct0fpmHu26mgTrkNugSA/Nm6pXA==}
+    engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
@@ -376,19 +376,9 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/provider-utils@5.0.52':
-    resolution: {integrity: sha512-PWWa14kVJlBj/G4E85D+IMM28H9W9SC3cQ/yyRHTMzRmtLkNgmDOLhSYBJ9ZT+w83a+DQ9+QIcCaY36iuD89mw==}
-    engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
   '@ai-sdk/provider@3.0.18':
     resolution: {integrity: sha512-IpefF5ssZVOZCD4Wu7zxt6PwZoGT2HLVjxpJ10Bjx6EAmRfLYJPjyrfxb0RYDlwvXnDb9nkQ7Do/oJVDuRFzew==}
     engines: {node: '>=18'}
-
-  '@ai-sdk/provider@4.0.20':
-    resolution: {integrity: sha512-daWW1Jxnvcn6+VhUuPqR7i5DtbdontcPCC5pH3QYU2r/x0hl31AIGiejWThGU499pJYA9DzwnBm+tc3EMKQeLQ==}
-    engines: {node: '>=22'}
 
   '@alloc/quick-lru@5.3.0':
     resolution: {integrity: sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA==}
@@ -1971,9 +1961,6 @@ packages:
 
   '@vitest/utils@4.1.11':
     resolution: {integrity: sha512-zTCVGpyFsGWBhllOyKlTw/vnr6D9qxsfSDyfbyZmTyjHw5N/VuvzHpHoQjm2ZJzn4RJgx5w4r7V0er69CmLgPQ==}
-
-  '@workflow/serde@4.1.0':
-    resolution: {integrity: sha512-pav4F2BoirECWR7Nf1TKt+2eETcBj7jj4cBefQ8VXQCA6NPkaKeLfj/zMgi+3zYV5ZIBT4GuUiphsj0/b9hPQQ==}
 
   '@xrplf/isomorphic@1.0.2':
     resolution: {integrity: sha512-ncZUdMXr6VlSXtdoiDi0jTH+gBrgGxwVeEidhoegII3PmyErbQsyj6e+j7acmR4LW/lvBkPkzb9QzRfJH0n3rA==}
@@ -4812,10 +4799,10 @@ packages:
 
 snapshots:
 
-  '@ai-sdk/anthropic@4.0.69(zod@4.6.5)':
+  '@ai-sdk/anthropic@3.0.125(zod@4.6.5)':
     dependencies:
-      '@ai-sdk/provider': 4.0.20
-      '@ai-sdk/provider-utils': 5.0.52(zod@4.6.5)
+      '@ai-sdk/provider': 3.0.18
+      '@ai-sdk/provider-utils': 4.0.56(zod@4.6.5)
       zod: 4.6.5
 
   '@ai-sdk/gateway@3.0.206(zod@4.6.5)':
@@ -4825,10 +4812,10 @@ snapshots:
       '@vercel/oidc': 3.2.0
       zod: 4.6.5
 
-  '@ai-sdk/openai@4.0.82(zod@4.6.5)':
+  '@ai-sdk/openai@3.0.121(zod@4.6.5)':
     dependencies:
-      '@ai-sdk/provider': 4.0.20
-      '@ai-sdk/provider-utils': 5.0.52(zod@4.6.5)
+      '@ai-sdk/provider': 3.0.18
+      '@ai-sdk/provider-utils': 4.0.56(zod@4.6.5)
       zod: 4.6.5
 
   '@ai-sdk/provider-utils@4.0.56(zod@4.6.5)':
@@ -4839,20 +4826,7 @@ snapshots:
       undici: 6.29.0
       zod: 4.6.5
 
-  '@ai-sdk/provider-utils@5.0.52(zod@4.6.5)':
-    dependencies:
-      '@ai-sdk/provider': 4.0.20
-      '@standard-schema/spec': 1.1.0
-      '@workflow/serde': 4.1.0
-      eventsource-parser: 3.1.1
-      undici: 7.30.0
-      zod: 4.6.5
-
   '@ai-sdk/provider@3.0.18':
-    dependencies:
-      json-schema: 0.4.0
-
-  '@ai-sdk/provider@4.0.20':
     dependencies:
       json-schema: 0.4.0
 
@@ -6128,8 +6102,6 @@ snapshots:
       '@vitest/pretty-format': 4.1.11
       convert-source-map: 2.0.0
       tinyrainbow: 3.2.0
-
-  '@workflow/serde@4.1.0': {}
 
   '@xrplf/isomorphic@1.0.2':
     dependencies:

@@ -13,8 +13,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.69",
-    "@ai-sdk/openai": "^4.0.82",
+    "@ai-sdk/anthropic": "^3.0.125",
+    "@ai-sdk/openai": "^3.0.121",
     "@aigentia/protocol": "workspace:*",
     "@aigentia/shared": "workspace:*",
     "ai": "^6.0.297",

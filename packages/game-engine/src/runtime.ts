@@ -105,6 +105,13 @@ export interface Runtime {
   close(): Promise<void>;
 }
 
+/** Model used when LLM_MODEL is empty. OpenAI has no default: set LLM_MODEL explicitly. */
+const DEFAULT_LLM_MODEL: Record<LLMProvider, string> = {
+  anthropic: "claude-fable-5-1",
+  openai: "",
+  mock: "mock-model",
+};
+
 /** Fee and reserve headroom the treasury keeps above any single funding payment. */
 const TREASURY_HEADROOM_DROPS = 2_000_000n;
 
@@ -120,8 +127,7 @@ export function makeBrainFactory(env: Env, logger?: Logger): (agent: AgentRecord
       const fromRow = agent.brainModel?.includes("/")
         ? agent.brainModel.split("/").slice(1).join("/")
         : agent.brainModel;
-      const modelId =
-        (fromRow && fromRow.trim()) || env.LLM_MODEL || (provider === "mock" ? "mock-model" : "");
+      const modelId = (fromRow && fromRow.trim()) || env.LLM_MODEL || DEFAULT_LLM_MODEL[provider];
       const apiKey =
         provider === "anthropic"
           ? env.ANTHROPIC_API_KEY

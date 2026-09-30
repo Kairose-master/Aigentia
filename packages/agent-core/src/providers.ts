@@ -6,7 +6,6 @@ import type { BrainKind } from "@aigentia/shared";
 import type { AgentBrain } from "./brain";
 import { DeterministicAgent } from "./deterministic-agent";
 import { LLMAgentBrain } from "./llm-agent";
-import { bridgeV4ToV3 } from "./provider-bridge";
 import { mockModelReturning } from "./testing/mock-model";
 
 export type LLMProvider = "anthropic" | "openai" | "mock";
@@ -47,12 +46,12 @@ export function createLanguageModel(options: CreateLanguageModelOptions): Langua
           "UNAUTHORIZED",
           "ANTHROPIC_API_KEY is required for provider anthropic",
         );
-      return bridgeV4ToV3(createAnthropic({ apiKey: options.apiKey })(modelId));
+      return createAnthropic({ apiKey: options.apiKey })(modelId);
     }
     case "openai": {
       if (!options.apiKey)
         throw new AigentiaError("UNAUTHORIZED", "OPENAI_API_KEY is required for provider openai");
-      return bridgeV4ToV3(createOpenAI({ apiKey: options.apiKey })(modelId));
+      return createOpenAI({ apiKey: options.apiKey })(modelId);
     }
     case "mock":
       return mockModelReturning(MOCK_CANNED_DECISION, modelId);
