@@ -1,3 +1,4 @@
+import { dataMode } from "@/lib/data-mode";
 import Link from "next/link";
 import { getTransactions } from "@/lib/api";
 import { Panel, PageHeader, OfflineBanner, EmptyState } from "@/components/panel";
@@ -70,11 +71,22 @@ export default async function TransactionsPage({
       {offline && <OfflineBanner />}
       <Panel eyebrow="Ledger" title="Payments">
         {payments.length === 0 ? (
-          <EmptyState
-            offline={offline}
-            title="No payments recorded."
-            detail="The first x402 purchase or transfer will appear here with its tx hash."
-          />
+          result.error?.code === "NOT_FOUND" ? (
+            <EmptyState
+              title="This page is not part of the recorded snapshot."
+              detail={result.error.message}
+            />
+          ) : (
+            <EmptyState
+              offline={offline}
+              title="No payments recorded."
+              detail={
+                dataMode() === "snapshot"
+                  ? "The recorded run contains no payments."
+                  : "The first x402 purchase or transfer will appear here with its tx hash."
+              }
+            />
+          )
         ) : (
           <Table>
             <TableHeader>

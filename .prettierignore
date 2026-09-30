@@ -4,3 +4,4 @@ dist
 pnpm-lock.yaml
 **/drizzle/meta
 services/x402-xrpl/.venv
+apps/web/src/snapshot

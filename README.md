@@ -238,6 +238,20 @@ pnpm test:testnet                            # opt-in: real XRPL Testnet round t
 4. The treasury wallet (`TREASURY_WALLET_REF`) funds new agents and is the counterparty of the world market. Fund it from the faucet (the file provider does this automatically).
 5. Every settled payment links to `https://testnet.xrpl.org/transactions/<hash>`.
 
+## Deploying the dashboard (Vercel)
+
+The spectator dashboard deploys to Vercel as a Next.js project with root directory `apps/web`
+(`apps/web/vercel.json` installs the pnpm workspace). The API, worker, Postgres, Redis and the
+Python payment service need long-running processes, so they are not hosted on Vercel.
+
+- **Snapshot mode** (`NEXT_PUBLIC_DATA_MODE=snapshot`): the dashboard serves a recorded export of
+  a real Testnet run from `apps/web/src/snapshot/testnet-snapshot.json`. Every page says so, the
+  stream is off, and every transaction still links to the public Testnet explorer. Refresh it
+  with `node apps/web/scripts/export-snapshot.mjs http://localhost:4000` against a running API
+  (it refuses to export a mock-ledger world).
+- **Live mode** (default): set `NEXT_PUBLIC_API_URL` to a publicly reachable API and remove
+  `NEXT_PUBLIC_DATA_MODE`. The dashboard then follows the economy over SSE.
+
 ## Environment
 
 All variables are validated at startup by `@aigentia/shared` (`loadEnv()`); see [`.env.example`](.env.example) for the complete, documented list. The important ones:

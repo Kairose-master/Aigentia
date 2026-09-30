@@ -2,7 +2,7 @@
 
 import type { StatsDto, WorldEvent } from "@aigentia/protocol";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { eventStreamUrl } from "@/lib/api";
+import { eventStreamUrl } from "@/lib/api-url";
 import { eventKey, parseSseEnvelope } from "@/lib/sse";
 import type { LedgerKind } from "@/lib/format";
 
@@ -20,6 +20,10 @@ export interface LiveStats {
 }
 
 export interface LiveState {
+  /** "snapshot" when the dashboard shows a recorded run instead of a live API. */
+  readonly mode: "live" | "snapshot";
+  /** When the snapshot was recorded (ISO), snapshot mode only. */
+  readonly snapshotRecordedAt: string | null;
   /** True while the EventSource is open. */
   readonly connected: boolean;
   /** True once the API answered at least once (server fetch or stream). */
@@ -72,9 +76,13 @@ export function mergeEvents(
 
 export function LiveProvider({
   initialStats,
+  mode = "live",
+  snapshotRecordedAt = null,
   children,
 }: {
   initialStats: StatsDto | null;
+  mode?: "live" | "snapshot";
+  snapshotRecordedAt?: string | null;
   children: React.ReactNode;
 }): React.JSX.Element {
   const [connected, setConnected] = useState(false);
@@ -86,6 +94,8 @@ export function LiveProvider({
   const attempts = useRef(0);
 
   useEffect(() => {
+    // A recorded snapshot has no stream to follow.
+    if (mode === "snapshot") return;
     if (typeof window === "undefined" || typeof EventSource === "undefined") return;
     let source: EventSource | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -138,13 +148,15 @@ export function LiveProvider({
       if (timer) clearTimeout(timer);
       source?.close();
     };
-  }, []);
+  }, [mode]);
 
   // Stream stats win once seen; until then the server-rendered snapshot is the truth.
   const stats = streamStats ?? statsFromDto(initialStats);
 
   const value = useMemo<LiveState>(
     () => ({
+      mode,
+      snapshotRecordedAt,
       connected,
       apiReachable: initialStats !== null || streamSeen,
       stats,
@@ -154,13 +166,25 @@ export function LiveProvider({
       lastHeartbeatAt,
       lastEventAt,
     }),
-    [connected, initialStats, streamSeen, stats, events, lastHeartbeatAt, lastEventAt],
+    [
+      mode,
+      snapshotRecordedAt,
+      connected,
+      initialStats,
+      streamSeen,
+      stats,
+      events,
+      lastHeartbeatAt,
+      lastEventAt,
+    ],
   );
 
   return <LiveContext.Provider value={value}>{children}</LiveContext.Provider>;
 }
 
 const OFFLINE: LiveState = {
+  mode: "live",
+  snapshotRecordedAt: null,
   connected: false,
   apiReachable: false,
   stats: null,

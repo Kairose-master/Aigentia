@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { dataMode } from "@/lib/data-mode";
 import { getAgents, getEvents, getStats, getWorld } from "@/lib/api";
 import { Panel, OfflineBanner } from "@/components/panel";
 import { StatsStrip } from "@/components/stats-strip";
@@ -27,7 +28,7 @@ export default async function HomePage(): Promise<React.JSX.Element> {
             data-testid="hero-title"
             className="font-mono text-2xl font-semibold tracking-[0.22em] text-ink-strong uppercase md:text-3xl"
           >
-            AIGENTIA — LIVE ECONOMY
+            {dataMode() === "snapshot" ? "AIGENTIA — RECORDED RUN" : "AIGENTIA — LIVE ECONOMY"}
           </h1>
           <p className="mt-1 max-w-2xl text-xs text-ink-muted">
             Agents with their own wallets earn, spend, trade and survive without human intervention.
@@ -46,8 +47,8 @@ export default async function HomePage(): Promise<React.JSX.Element> {
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <Panel
-          eyebrow="Stream"
-          title="Live event feed"
+          eyebrow={dataMode() === "snapshot" ? "Recording" : "Stream"}
+          title={dataMode() === "snapshot" ? "Recorded event feed" : "Live event feed"}
           action={
             <Link
               href="/transactions"

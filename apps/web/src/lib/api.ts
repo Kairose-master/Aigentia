@@ -16,8 +16,11 @@ import type {
   WorldEvent,
 } from "@aigentia/protocol";
 import type { ErrorCode } from "@aigentia/shared";
+import { dataMode } from "./data-mode";
+import { apiBaseUrl, apiUrl } from "./api-url";
 
-export const DEFAULT_API_URL = "http://localhost:4000";
+export { DEFAULT_API_URL, apiBaseUrl, apiUrl, eventStreamUrl } from "./api-url";
+
 export const DEFAULT_TIMEOUT_MS = 6_000;
 
 export interface ApiError {
@@ -67,31 +70,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Base URL of the API without a trailing slash. */
-export function apiBaseUrl(): string {
-  const raw = process.env.NEXT_PUBLIC_API_URL;
-  const base = raw && raw.trim().length > 0 ? raw.trim() : DEFAULT_API_URL;
-  return base.replace(/\/+$/, "");
-}
-
-/** Absolute URL for a route, with `undefined`/`null` query values dropped. */
-export function apiUrl(path: string, query?: Record<string, QueryValue>): string {
-  const params = new URLSearchParams();
-  if (query) {
-    for (const [key, value] of Object.entries(query)) {
-      if (value === undefined || value === null || value === "") continue;
-      params.set(key, String(value));
-    }
-  }
-  const qs = params.toString();
-  return `${apiBaseUrl()}${path.startsWith("/") ? path : `/${path}`}${qs ? `?${qs}` : ""}`;
-}
-
-/** URL of the Server-Sent Events stream (`SseEnvelope` per message). */
-export function eventStreamUrl(): string {
-  return apiUrl("/api/events/stream");
-}
-
 function statusToCode(status: number): ErrorCode {
   switch (status) {
     case 400:
@@ -133,6 +111,10 @@ export async function apiFetch<T>(
   query: Record<string, QueryValue> | undefined,
   options: ApiFetchOptions,
 ): Promise<ApiResult<T>> {
+  if (dataMode() === "snapshot") {
+    const { readSnapshot } = await import("./snapshot");
+    return readSnapshot<T>(path, query, options.expect);
+  }
   const url = apiUrl(path, query);
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   let response: Response;

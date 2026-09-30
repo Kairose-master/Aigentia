@@ -1,0 +1,11 @@
+# Never upload local secrets or state to Vercel, even on a CLI/file-upload deploy.
+.aigentia/
+.env
+.env.*
+!.env.example
+**/wallets*.json
+dump.rdb
+*.log
+services/x402-xrpl/.venv/
+**/node_modules/
+**/.next/

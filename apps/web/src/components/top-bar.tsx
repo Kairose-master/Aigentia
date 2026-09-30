@@ -18,7 +18,20 @@ const NAV: ReadonlyArray<{ href: string; label: string }> = [
 ];
 
 export function LivePill(): React.JSX.Element {
-  const { connected } = useLive();
+  const { connected, mode } = useLive();
+  if (mode === "snapshot") {
+    return (
+      <span
+        data-testid="live-pill"
+        data-state="snapshot"
+        title="Recorded snapshot of a real XRPL Testnet run; not a live connection"
+        className="inline-flex h-6 items-center gap-2 rounded-full border border-warn/40 bg-warn/10 px-2.5 font-mono text-[11px] tracking-[0.18em] text-warn uppercase"
+      >
+        <span className="inline-block size-1.5 rounded-full bg-warn" />
+        Snapshot
+      </span>
+    );
+  }
   return (
     <span
       data-testid="live-pill"
