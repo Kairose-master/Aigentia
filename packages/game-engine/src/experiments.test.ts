@@ -92,7 +92,10 @@ describe("experiment lifecycle on the [MOCK] ledger", () => {
   });
 
   it("rejects a distribution that does not add up and finishes experiments past their deadline", async () => {
-    const world = await buildTestWorld({ seed: "exp-deadline", agents: [] });
+    const world = await buildTestWorld({
+      seed: "exp-deadline",
+      agents: [{ name: "OUTSIDER-1", objective: "maximize_net_worth", capitalXrp: 10 }],
+    });
     const deps = {
       ...world.runtime,
       createAgent: (i: Parameters<typeof world.runtime.createAgent>[0]) =>
@@ -105,6 +108,17 @@ describe("experiment lifecycle on the [MOCK] ledger", () => {
         objectiveDistribution: [{ objective: "survive", count: 2 }],
       }),
     ).rejects.toMatchObject({ code: "VALIDATION_FAILED" });
+    // 2 XRP cannot cover a 1.5 XRP minimum balance plus the 1 XRP reserve: agents could only wait.
+    await expect(
+      createExperiment(
+        deps,
+        { ...GENESIS_24H, startingCapitalXrp: 2 },
+        { defaultMinimumBalanceDrops: 1_500_000n },
+      ),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_FAILED",
+      message: expect.stringMatching(/nothing to spend/),
+    });
     const draft = await createExperiment(deps, {
       ...GENESIS_24H,
       name: "Blink",
@@ -117,6 +131,8 @@ describe("experiment lifecycle on the [MOCK] ledger", () => {
       ],
     });
     await startExperiment(deps, draft.id);
+    // Agents outside the experiment are paused so they cannot trade with its agents.
+    expect((await world.store.getAgent(world.agent("OUTSIDER-1").id))?.status).toBe("paused");
     await world.runTicks(2);
     const later = { ...deps, clock: () => new Date(Date.now() + 3_600_000 * 48) };
     const done = await finishDueExperiments(later);

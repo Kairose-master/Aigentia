@@ -6,7 +6,7 @@ import {
   type ExperimentConfigInput,
   type ExperimentResults,
 } from "@aigentia/protocol";
-import { AigentiaError, type Objective } from "@aigentia/shared";
+import { AigentiaError, xrpToDrops, type Objective } from "@aigentia/shared";
 import type { CreateAgentInput } from "./agent-factory";
 import type { BalanceSource, Clock } from "./context";
 import type { EventLog } from "./events";
@@ -63,12 +63,36 @@ export interface ExperimentDeps {
   createAgent(input: CreateAgentInput): Promise<AgentRecord>;
 }
 
-/** Validate and store a draft experiment. Objective counts must add up to agentCount. */
+/** XRPL base reserve an account can never spend (1 XRP on Testnet and Mainnet today). */
+export const XRPL_BASE_RESERVE_DROPS = 1_000_000n;
+
+export interface CreateExperimentOptions {
+  /** The deployment's default minimum balance (POLICY_MINIMUM_BALANCE_DROPS). */
+  readonly defaultMinimumBalanceDrops?: bigint;
+}
+
+/**
+ * Validate and store a draft experiment. Objective counts must add up to agentCount, and the
+ * starting capital must leave agents something to spend above their minimum balance and the
+ * XRPL reserve; otherwise every agent could only WAIT and the experiment would measure nothing.
+ */
 export async function createExperiment(
   deps: Pick<ExperimentDeps, "store" | "ids" | "clock">,
   input: ExperimentConfigInput,
+  options: CreateExperimentOptions = {},
 ): Promise<ExperimentRecord> {
   const config = experimentConfigSchema.parse(input);
+  const minimum = config.budgetPolicy
+    ? BigInt(config.budgetPolicy.minimumBalanceDrops)
+    : (options.defaultMinimumBalanceDrops ?? 0n);
+  const capital = xrpToDrops(config.startingCapitalXrp);
+  if (capital <= minimum + XRPL_BASE_RESERVE_DROPS) {
+    throw new AigentiaError(
+      "VALIDATION_FAILED",
+      `starting capital ${fmtXrp(capital)} leaves nothing to spend above the minimum balance ${fmtXrp(minimum)} plus the ${fmtXrp(XRPL_BASE_RESERVE_DROPS)} XRPL reserve`,
+      { capitalDrops: capital.toString(), minimumBalanceDrops: minimum.toString() },
+    );
+  }
   const total = config.objectiveDistribution.reduce((sum, o) => sum + o.count, 0);
   if (total !== config.agentCount) {
     throw new AigentiaError(
@@ -128,6 +152,10 @@ export async function startExperiment(deps: ExperimentDeps, id: string): Promise
     throw new AigentiaError("CONFLICT", `experiment ${running[0]?.name ?? ""} is already running`);
   }
   const config = experimentConfigSchema.parse(experiment.config);
+  // Isolation: agents outside the experiment would trade with its agents and contaminate the
+  // results, so they are paused for the duration (reactivate them afterwards if wanted).
+  const outsiders = (await store.listActiveAgents()).filter((a) => a.experimentId !== id);
+  for (const a of outsiders) await store.updateAgent(a.id, { status: "paused" });
   const names = experimentAgentNames(id, config.agentCount);
   const objectives = objectiveSchedule(config);
   for (let i = 0; i < config.agentCount; i++) {
@@ -159,8 +187,8 @@ export async function startExperiment(deps: ExperimentDeps, id: string): Promise
     at: now,
     type: "EXPERIMENT_STARTED",
     experimentId: id,
-    message: `Experiment "${experiment.name}" started: ${config.agentCount} agents, ${config.startingCapitalXrp} XRP each, ${config.durationHours}h, human intervention disabled`,
-    payload: { experimentId: id },
+    message: `Experiment "${experiment.name}" started: ${config.agentCount} agents, ${config.startingCapitalXrp} XRP each, ${config.durationHours}h, human intervention disabled${outsiders.length > 0 ? `, ${outsiders.length} outside agents paused` : ""}`,
+    payload: { experimentId: id, pausedAgentIds: outsiders.map((a) => a.id) },
   });
   return started;
 }

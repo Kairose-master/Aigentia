@@ -83,7 +83,9 @@ export function registerAdminRoutes(app: FastifyInstance, ctx: RouteContext): vo
 
       admin.post("/experiments", async (request, reply) => {
         const config = parseWith(experimentConfigSchema, request.body ?? {}, "experiment config");
-        const experiment = await createExperiment(experimentDeps(ctx), config);
+        const experiment = await createExperiment(experimentDeps(ctx), config, {
+          defaultMinimumBalanceDrops: BigInt(ctx.env.POLICY_MINIMUM_BALANCE_DROPS),
+        });
         return reply.code(201).send(await experimentBody(ctx, experiment.id));
       });
 

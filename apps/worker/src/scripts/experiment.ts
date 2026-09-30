@@ -21,7 +21,9 @@ async function main(): Promise<void> {
       ...rt,
       createAgent: (input: Parameters<typeof rt.createAgent>[0]) => rt.createAgent(input),
     };
-    const draft = await createExperiment(deps, config);
+    const draft = await createExperiment(deps, config, {
+      defaultMinimumBalanceDrops: BigInt(env.POLICY_MINIMUM_BALANCE_DROPS),
+    });
     console.log(
       `created ${draft.id} "${draft.name}" (${config.agentCount} agents, ${config.startingCapitalXrp} XRP each, ${config.durationHours}h, ledger=${rt.ledger})`,
     );

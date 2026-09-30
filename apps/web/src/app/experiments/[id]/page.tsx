@@ -373,7 +373,8 @@ export default async function ExperimentPage({
                               href={`/agents/${s.sellerAgentId}`}
                               className="font-mono text-xs text-ink-muted hover:text-live"
                             >
-                              {s.sellerAgentId}
+                              {res.networkGraph.nodes.find((n) => n.id === s.sellerAgentId)?.name ??
+                                s.sellerAgentId}
                             </Link>
                           </TableCell>
                           <TableCell className="tnum text-right font-mono text-xs">

@@ -142,11 +142,20 @@ pnpm --filter @aigentia/worker experiment --agents 4 --hours 0.1 --capital 2 --n
 ```
 
 Or over HTTP: `POST /api/admin/experiments` with an experiment config, then
-`POST /api/admin/experiments/:id/start`. While it runs, creating agents, pausing and manual ticks
-answer `409`. The worker finishes it at its deadline; `/experiments/[id]` then shows the wealth
+`POST /api/admin/experiments/:id/start`. Starting an experiment pauses every agent outside it so
+they cannot trade with its agents (they stay paused afterwards). While it runs, creating agents,
+pausing and manual ticks answer `409`. The worker finishes it at its deadline; `/experiments/[id]` then shows the wealth
 and revenue leaderboards, service usage, trade count, survival, economic concentration (Gini and
 top-10% share), failed versus verified payments, most-used services and the agent-to-agent
 transaction graph.
+
+### A first result on Testnet
+
+"Genesis Sprint III" ran 4 agents (one per objective, 4 test XRP each) for six minutes on XRPL
+Testnet with no human intervention. The agent maximizing **reputation** became the economy's only
+service provider: it sold ANALYST and SCOUT calls over x402 to the information-seeking and
+wealth-seeking agents, earned all the revenue and finished richest. 19 ticks, 11 verified
+payments, 0 failed, Gini 0.003, all 4 agents alive.
 
 ## Repository layout
 

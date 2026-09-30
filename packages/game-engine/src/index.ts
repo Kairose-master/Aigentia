@@ -81,6 +81,7 @@ export { X402ServicePurchaser } from "./x402-purchaser";
 export type { X402ServicePurchaserDeps } from "./x402-purchaser";
 export {
   GENESIS_24H,
+  XRPL_BASE_RESERVE_DROPS,
   createExperiment,
   startExperiment,
   finishExperiment,
@@ -91,4 +92,4 @@ export {
   gini,
   topShare,
 } from "./experiments";
-export type { ExperimentDeps } from "./experiments";
+export type { ExperimentDeps, CreateExperimentOptions } from "./experiments";

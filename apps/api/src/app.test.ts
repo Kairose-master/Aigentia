@@ -423,6 +423,10 @@ describe("admin routes", () => {
     expect(experimentDto.parse(listed.json()).results?.networkGraph.nodes).toHaveLength(2);
     const stop = await app.inject({ method: "POST", url: "/api/admin/sim/stop", headers });
     expect(stop.statusCode).toBe(200);
+    // Isolation paused every agent outside the experiment; later tests need them back.
+    for (const a of await world.store.listAgents({ status: "paused" })) {
+      if (a.experimentId !== draft.id) await world.store.updateAgent(a.id, { status: "active" });
+    }
   });
 });
 
