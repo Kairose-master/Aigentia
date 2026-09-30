@@ -17,7 +17,8 @@ import { Money } from "@/components/money";
 import { StatusChip } from "@/components/status-chip";
 import { TxLink } from "@/components/address-link";
 import { LedgerBadge } from "@/components/ledger-badge";
-import { formatLatency, formatNumber, timeAgo } from "@/lib/format";
+import { formatLatency, formatNumber } from "@/lib/format";
+import { TimeAgo } from "@/components/time-ago";
 import { cn } from "@/lib/utils";
 
 const HEAD = "text-[10px] tracking-[0.14em] text-ink-muted uppercase";
@@ -126,7 +127,7 @@ export function AgentTabs({ profile }: { profile: AgentProfileDto }): React.JSX.
                       <TxLink txHash={p.txHash} ledger={p.ledger} explorerUrl={p.explorerUrl} />
                     </TableCell>
                     <TableCell className="font-mono text-[11px] text-ink-muted">
-                      {timeAgo(p.validatedAt ?? p.createdAt)}
+                      <TimeAgo iso={p.validatedAt ?? p.createdAt} />
                     </TableCell>
                   </TableRow>
                 );
@@ -289,7 +290,7 @@ export function AgentTabs({ profile }: { profile: AgentProfileDto }): React.JSX.
                   </TableCell>
                   <TableCell className="font-mono text-[11px]">{r.reason}</TableCell>
                   <TableCell className="font-mono text-[11px] text-ink-muted">
-                    {timeAgo(r.createdAt)}
+                    <TimeAgo iso={r.createdAt} />
                   </TableCell>
                 </TableRow>
               ))}

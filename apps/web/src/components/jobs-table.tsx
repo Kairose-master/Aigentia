@@ -15,7 +15,7 @@ import { EmptyState } from "@/components/panel";
 import { Money } from "@/components/money";
 import { StatusChip } from "@/components/status-chip";
 import { TxLink } from "@/components/address-link";
-import { timeAgo } from "@/lib/format";
+import { TimeAgo } from "@/components/time-ago";
 import { cn } from "@/lib/utils";
 
 const STATUSES = [
@@ -136,7 +136,7 @@ export function JobsTable({
                   <TxLink txHash={j.txHash} />
                 </TableCell>
                 <TableCell className="font-mono text-[11px] text-ink-muted">
-                  {timeAgo(j.createdAt)}
+                  <TimeAgo iso={j.createdAt} />
                 </TableCell>
               </TableRow>
             ))}

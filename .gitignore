@@ -30,3 +30,6 @@ playwright-report/
 test-results/
 .DS_Store
 *.log
+
+# Redis snapshot written by a locally started redis-server
+dump.rdb

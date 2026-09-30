@@ -26,6 +26,7 @@ jobs:
           --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/aigentia
+      DATABASE_URL_TEST: postgres://postgres:postgres@localhost:5432/aigentia_test
       REDIS_URL: redis://localhost:6379
       SIM_LEDGER: mock
       NODE_ENV: test
@@ -42,6 +43,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm db:migrate
+      - run: psql "$DATABASE_URL" -c "CREATE DATABASE aigentia_test"
       - run: pnpm test
       - run: pnpm --filter @aigentia/web build
 

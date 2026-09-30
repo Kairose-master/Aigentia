@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createDb, type DbHandle } from "@aigentia/db";
+import { createDb, migrateDb, type DbHandle } from "@aigentia/db";
 import { envSchema, isAigentiaError } from "@aigentia/shared";
 import { sql } from "drizzle-orm";
 import { createRuntime, type Runtime } from "./runtime";
@@ -8,10 +8,11 @@ import { steppedClock } from "./testing";
 import { genesisWorld } from "./world";
 
 /**
- * Postgres-backed engine test. Runs only when DATABASE_URL is set (migrations applied);
- * it truncates the tables it writes to and never touches the schema or the static world.
+ * Postgres-backed engine test. Runs only when DATABASE_URL_TEST points at a DEDICATED test
+ * database (never the development world): it applies migrations itself and truncates the
+ * tables it writes to before running.
  */
-const DATABASE_URL = process.env["DATABASE_URL"];
+const DATABASE_URL = process.env["DATABASE_URL_TEST"];
 const describePg = DATABASE_URL ? describe : describe.skip;
 
 const WRITTEN_TABLES = [
@@ -40,6 +41,7 @@ describePg("PostgresWorldStore", () => {
 
   beforeAll(async () => {
     handle = createDb(DATABASE_URL ?? "", { max: 4 });
+    await migrateDb(handle.db);
     await handle.db.execute(
       sql.raw(`TRUNCATE ${WRITTEN_TABLES.map((t) => `"${t}"`).join(", ")} CASCADE`),
     );

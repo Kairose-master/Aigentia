@@ -1,7 +1,8 @@
 import type { DecisionTraceDto } from "@aigentia/protocol";
 import { cn } from "@/lib/utils";
 import { TONE_TEXT, statusTone } from "@/lib/colors";
-import { formatLatency, timeAgo } from "@/lib/format";
+import { formatLatency } from "@/lib/format";
+import { TimeAgo } from "@/components/time-ago";
 import { Money } from "@/components/money";
 import { StatusChip } from "@/components/status-chip";
 import { TxLink } from "@/components/address-link";
@@ -53,7 +54,7 @@ export function DecisionTraceCard({
         <span className="ml-auto font-mono text-[10px] text-ink-dim">
           {trace.brain}
           {trace.latencyMs !== null ? ` · ${formatLatency(trace.latencyMs)}` : ""} ·{" "}
-          {timeAgo(trace.createdAt, now)}
+          <TimeAgo iso={trace.createdAt} now={now} />
         </span>
       </header>
       <Row label="Observation">

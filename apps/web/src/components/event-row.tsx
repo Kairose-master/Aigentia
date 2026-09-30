@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { WorldEvent } from "@aigentia/protocol";
 import { cn } from "@/lib/utils";
 import { TONE_DOT, TONE_TEXT, eventTone } from "@/lib/colors";
-import { formatXrp, timeAgo, type LedgerKind } from "@/lib/format";
+import { formatXrp, type LedgerKind } from "@/lib/format";
+import { TimeAgo } from "@/components/time-ago";
 import { TxLink } from "@/components/address-link";
 
 export function EventRow({
@@ -54,7 +55,7 @@ export function EventRow({
         dateTime={event.createdAt}
         className="tnum font-mono text-[10px] whitespace-nowrap text-ink-muted"
       >
-        {timeAgo(event.createdAt, now)}
+        <TimeAgo iso={event.createdAt} now={now} />
       </time>
     </li>
   );

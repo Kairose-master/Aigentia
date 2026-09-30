@@ -3,17 +3,22 @@
 import type { StatsDto } from "@aigentia/protocol";
 import { useLive } from "@/components/live-provider";
 import { StatTile } from "@/components/stat-tile";
-import { formatNumber, formatXrpCompact, timeAgo } from "@/lib/format";
+import { formatNumber, formatXrpCompact } from "@/lib/format";
+import { TimeAgo } from "@/components/time-ago";
 
 /** Hero stats strip; server-seeded, then updated from the SSE `stats` channel. */
 export function StatsStrip({ initial }: { initial: StatsDto | null }): React.JSX.Element {
   const live = useLive();
   const stats = live.stats;
-  const hint = live.connected
-    ? `streaming · tick ${stats ? formatNumber(stats.tick) : "—"}`
-    : initial
-      ? `snapshot ${timeAgo(initial.updatedAt)}`
-      : "API offline";
+  const hint: React.ReactNode = live.connected ? (
+    `streaming · tick ${stats ? formatNumber(stats.tick) : "—"}`
+  ) : initial ? (
+    <>
+      snapshot <TimeAgo iso={initial.updatedAt} />
+    </>
+  ) : (
+    "API offline"
+  );
   return (
     <div
       data-testid="stats-strip"

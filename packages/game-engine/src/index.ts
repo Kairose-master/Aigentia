@@ -71,3 +71,7 @@ export { createAgent } from "./agent-factory";
 export type { CreateAgentDeps, CreateAgentInput } from "./agent-factory";
 export { createRuntime, makeBrainFactory } from "./runtime";
 export type { Runtime, RuntimeOptions } from "./runtime";
+export { InMemoryEventBus, bridgeEventLog, encodeBusMessage, decodeBusMessage } from "./event-bus";
+export type { EventBus, EventListener } from "./event-bus";
+export { RedisEventBus } from "./redis-event-bus";
+export type { RedisEventBusOptions } from "./redis-event-bus";
