@@ -23,10 +23,15 @@ import {
   XRPLClient,
   createWalletProvider,
   xrplConfigFromEnv,
+  type PaymentVerifier,
   type WalletProvider,
   type XrplNetworkConfig,
 } from "@aigentia/xrpl";
 import { MockLedger, MockWalletProvider } from "@aigentia/xrpl/testing";
+import { HttpFacilitator, X402Client, type Facilitator, type FetchFn } from "@aigentia/x402";
+import { MockFacilitator } from "@aigentia/x402/testing";
+import { SellerGate } from "./x402-seller";
+import { X402ServicePurchaser } from "./x402-purchaser";
 import { createAgent, type CreateAgentInput } from "./agent-factory";
 import type { BalanceSource, Clock, TreasuryInfo } from "./context";
 import { EventLog, type EventSink } from "./events";
@@ -61,6 +66,15 @@ export interface RuntimeOptions {
   readonly executeService?: ServiceExecutor;
   /** Mock ledger only: XRP minted to the treasury on start (default 1,000,000 XRP). */
   readonly mockTreasuryXrp?: bigint;
+  /**
+   * How agents buy services. "x402" (default on testnet) goes over HTTP 402 to the seller's
+   * endpoint and settles through the facilitator; "in-process" (default on mock) pays directly.
+   */
+  readonly purchaserMode?: "x402" | "in-process";
+  /** Override the facilitator (default: services/x402-xrpl on testnet, [MOCK] on mock). */
+  readonly facilitator?: Facilitator;
+  /** HTTP client the x402 buyer uses to reach seller endpoints (tests route it in-process). */
+  readonly fetch?: FetchFn;
 }
 
 export interface Runtime {
@@ -80,6 +94,10 @@ export interface Runtime {
   readonly xrplConfig: XrplNetworkConfig | null;
   /** Present only on the mock ledger. */
   readonly mockLedger: MockLedger | null;
+  /** x402 resource server for agent services (mounted by the API). */
+  readonly sellerGate: SellerGate;
+  readonly facilitator: Facilitator;
+  readonly purchaserMode: "x402" | "in-process";
   /** Connect the ledger client and resolve the treasury wallet; no-op on the mock ledger. */
   connect(): Promise<void>;
   createAgent(input: CreateAgentInput): Promise<AgentRecord>;
@@ -87,10 +105,10 @@ export interface Runtime {
   close(): Promise<void>;
 }
 
-/** Brain per agent, cached: deterministic or LLM according to the agent row and LLM_* env. */
 /** Fee and reserve headroom the treasury keeps above any single funding payment. */
 const TREASURY_HEADROOM_DROPS = 2_000_000n;
 
+/** Brain per agent, cached: deterministic or LLM according to the agent row and LLM_* env. */
 export function makeBrainFactory(env: Env, logger?: Logger): (agent: AgentRecord) => AgentBrain {
   const cache = new Map<string, AgentBrain>();
   return (agent) => {
@@ -166,6 +184,8 @@ export async function createRuntime(env: Env, options: RuntimeOptions): Promise<
   let xrplConfig: XrplNetworkConfig | null = null;
   let client: XRPLClient | null = null;
   let ids: IdGenerator;
+  let verifier: PaymentVerifier;
+  let facilitator: Facilitator;
 
   if (options.ledger === "mock") {
     logger.warn(
@@ -179,21 +199,21 @@ export async function createRuntime(env: Env, options: RuntimeOptions): Promise<
     walletProvider = wallets;
     adapter = new MockPaymentAdapter(ledger, wallets);
     mockLedger = ledger;
+    verifier = ledger;
+    facilitator = options.facilitator ?? new MockFacilitator(ledger, { network: "xrpl:1" });
     ids = options.ids ?? new DeterministicIdGenerator(env.SIM_SEED);
   } else {
     xrplConfig = xrplConfigFromEnv(env);
     client = new XRPLClient(xrplConfig, { logger });
     walletProvider = createWalletProvider(env, xrplConfig, { client, logger });
     balances = new LedgerBalanceReader(client);
-    adapter = new XRPLPaymentAdapter(
-      client,
-      walletProvider,
-      new LedgerPaymentVerifier(client),
-      xrplConfig,
-      {
-        logger,
-      },
-    );
+    verifier = new LedgerPaymentVerifier(client);
+    facilitator =
+      options.facilitator ??
+      new HttpFacilitator({ baseUrl: env.X402_SERVICE_URL, token: env.X402_SERVICE_TOKEN });
+    adapter = new XRPLPaymentAdapter(client, walletProvider, verifier, xrplConfig, {
+      logger,
+    });
     ids = options.ids ?? new RandomIdGenerator();
   }
 
@@ -213,8 +233,45 @@ export async function createRuntime(env: Env, options: RuntimeOptions): Promise<
     treasury,
     logger,
   });
+  const network = xrplConfig?.caip2 ?? "xrpl:1";
+  const purchaserMode =
+    options.purchaserMode ?? (options.ledger === "testnet" ? "x402" : "in-process");
+  const sellerGate = new SellerGate({
+    store,
+    facilitator,
+    verifier,
+    events,
+    ids,
+    clock,
+    network,
+    sourceTag: env.X402_SOURCE_TAG,
+    maxTimeoutSeconds: env.X402_MAX_TIMEOUT_SECONDS,
+    logger,
+    ...(options.executeService ? { executeService: options.executeService } : {}),
+  });
+  const x402Purchaser = (): ServicePurchaser =>
+    new X402ServicePurchaser({
+      store,
+      settlement,
+      events,
+      ids,
+      clock,
+      network,
+      sourceTag: env.X402_SOURCE_TAG,
+      maxTimeoutSeconds: env.X402_MAX_TIMEOUT_SECONDS,
+      logger,
+      client: new X402Client({
+        facilitator,
+        walletProvider,
+        verifier,
+        network,
+        networkId: xrplConfig?.networkId ?? 1,
+        ...(options.fetch ? { fetch: options.fetch } : {}),
+      }),
+    });
   const purchaser =
     options.purchaser?.(settlement, events) ??
+    (purchaserMode === "x402" ? x402Purchaser() : undefined) ??
     new InProcessServicePurchaser({
       store,
       settlement,
@@ -274,6 +331,9 @@ export async function createRuntime(env: Env, options: RuntimeOptions): Promise<
     spendTracker,
     xrplConfig,
     mockLedger,
+    sellerGate,
+    facilitator,
+    purchaserMode,
     async connect(): Promise<void> {
       if (client) {
         await client.connect();

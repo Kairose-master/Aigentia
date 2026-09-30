@@ -1,0 +1,22 @@
+{
+  "name": "@aigentia/x402",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "x402 machine-to-machine commerce over XRPL: fail-closed payment-requirement validation, buyer client, facilitator client for services/x402-xrpl and a [MOCK] facilitator for tests.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aigentia/protocol": "workspace:*",
+    "@aigentia/shared": "workspace:*",
+    "@aigentia/xrpl": "workspace:*",
+    "xrpl": "^5.3.0",
+    "zod": "^4.3.3"
+  }
+}

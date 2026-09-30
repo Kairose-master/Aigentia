@@ -65,6 +65,11 @@ export interface PayContext {
   readonly scope?: string;
   /** Tail for the spectator line, e.g. "for SCOUT intelligence". */
   readonly description?: string;
+  /**
+   * Adapter for this one payment (the x402 purchaser settles through the seller's
+   * facilitator instead of submitting directly). Must settle on the same ledger.
+   */
+  readonly adapter?: PaymentAdapter;
 }
 
 export interface PaymentOutcome {
@@ -132,7 +137,18 @@ export class Settlement {
   }
 
   async pay(intent: PaymentIntent, ctx: PayContext): Promise<PaymentOutcome> {
-    const { store, adapter, policyEngine, spendTracker, balances, events, ids, clock } = this.deps;
+    const { store, policyEngine, spendTracker, balances, events, ids, clock } = this.deps;
+    const adapter = ctx.adapter ?? this.deps.adapter;
+    if (adapter.ledger !== this.deps.adapter.ledger) {
+      throw new AigentiaError(
+        "VALIDATION_FAILED",
+        "payment adapter settles on a different ledger",
+        {
+          expected: this.deps.adapter.ledger,
+          actual: adapter.ledger,
+        },
+      );
+    }
     const payer = ctx.agent;
     const fromTreasury = isTreasuryPayer(payer);
     const now = clock();

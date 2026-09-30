@@ -75,3 +75,7 @@ export { InMemoryEventBus, bridgeEventLog, encodeBusMessage, decodeBusMessage } 
 export type { EventBus, EventListener } from "./event-bus";
 export { RedisEventBus } from "./redis-event-bus";
 export type { RedisEventBusOptions } from "./redis-event-bus";
+export { SellerGate } from "./x402-seller";
+export type { SellerGateDeps, SellerRequest, SellerResponse } from "./x402-seller";
+export { X402ServicePurchaser } from "./x402-purchaser";
+export type { X402ServicePurchaserDeps } from "./x402-purchaser";

@@ -20,7 +20,12 @@ import {
   worldEvents,
   type Database,
 } from "@aigentia/db";
-import { AigentiaError, errorMessage, type ResourceType } from "@aigentia/shared";
+import {
+  AigentiaError,
+  errorMessage,
+  type InvocationStatus,
+  type ResourceType,
+} from "@aigentia/shared";
 import { worldEventSchema, type WorldEvent, type WorldEventInput } from "@aigentia/protocol";
 import type { GenesisWorld } from "../world";
 import { knowledgeFromStrategy, knowledgeToJson, mergeKnowledge } from "./knowledge";
@@ -261,6 +266,15 @@ export class PostgresWorldStore implements WorldStore {
 
   async getAgentByName(name: string): Promise<AgentRecord | null> {
     const rows = await this.db.select().from(agents).where(eq(agents.name, name)).limit(1);
+    return rows[0] ?? null;
+  }
+
+  async getAgentByAddress(address: string): Promise<AgentRecord | null> {
+    const rows = await this.db
+      .select()
+      .from(agents)
+      .where(eq(agents.walletAddress, address))
+      .limit(1);
     return rows[0] ?? null;
   }
 
@@ -570,6 +584,34 @@ export class PostgresWorldStore implements WorldStore {
         txHash: patch.txHash ?? null,
       });
     }
+  }
+
+  async transitionInvocation(
+    id: string,
+    from: InvocationStatus,
+    patch: InvocationPatch,
+  ): Promise<InvocationRecord | null> {
+    try {
+      const rows = await this.db
+        .update(serviceInvocations)
+        .set({ ...defined({ ...patch }), updatedAt: new Date() })
+        .where(and(eq(serviceInvocations.id, id), eq(serviceInvocations.status, from)))
+        .returning();
+      return rows[0] ?? null;
+    } catch (e) {
+      return asConflict(e, `tx ${patch.txHash ?? ""} already settles an invocation`, {
+        txHash: patch.txHash ?? null,
+      });
+    }
+  }
+
+  async getInvocationByTxHash(txHash: string): Promise<InvocationRecord | null> {
+    const rows = await this.db
+      .select()
+      .from(serviceInvocations)
+      .where(eq(serviceInvocations.txHash, txHash))
+      .limit(1);
+    return rows[0] ?? null;
   }
 
   // ── jobs ────────────────────────────────────────────────────────────────────

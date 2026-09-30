@@ -1,3 +1,4 @@
+import { x402PaymentRequiredSchema } from "@aigentia/protocol";
 import { buildTestWorld, type TestWorld } from "@aigentia/game-engine/testing";
 import {
   agentProfileDto,
@@ -382,15 +383,24 @@ describe("admin routes", () => {
 });
 
 describe("POST /services/:id/invoke", () => {
-  it("is registered and answers 501 until Phase 3", async () => {
+  it("answers an unpaid call with HTTP 402 and x402 v2 payment requirements", async () => {
     const [service] = await world.store.listServices({ kind: "SCOUT" });
     const res = await app.inject({
       method: "POST",
       url: `/services/${service?.id}/invoke`,
-      payload: {},
+      payload: { input: {} },
     });
-    expect(res.statusCode).toBe(501);
-    expect(res.json<{ message: string }>().message).toMatch(/Phase 3/);
+    expect(res.statusCode).toBe(402);
+    const body = x402PaymentRequiredSchema.parse(res.json());
+    expect(body.accepts[0]?.amount).toBe(service?.priceDrops.toString());
+    expect(body.accepts[0]?.extra?.invoiceId).toBeTruthy();
+    const bad = await app.inject({
+      method: "POST",
+      url: `/services/${service?.id}/invoke`,
+      headers: { "payment-signature": "not-a-receipt" },
+      payload: { input: {} },
+    });
+    expect(bad.statusCode).toBe(400);
     const missing = await app.inject({
       method: "POST",
       url: "/services/svc_nope/invoke",

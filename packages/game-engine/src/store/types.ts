@@ -195,6 +195,8 @@ export interface NewInvocationInput {
 
 export interface InvocationPatch {
   readonly status?: InvocationStatus;
+  readonly buyerAgentId?: string | null;
+  readonly buyerAddress?: string | null;
   readonly paymentId?: string | null;
   readonly txHash?: string | null;
   readonly response?: Record<string, unknown> | null;
@@ -365,6 +367,7 @@ export interface WorldStore {
   listActiveAgents(): Promise<AgentRecord[]>;
   getAgent(id: string): Promise<AgentRecord | null>;
   getAgentByName(name: string): Promise<AgentRecord | null>;
+  getAgentByAddress(address: string): Promise<AgentRecord | null>;
   insertAgent(input: NewAgentInput): Promise<AgentRecord>;
   updateAgent(id: string, patch: AgentPatch): Promise<AgentRecord>;
 
@@ -393,6 +396,17 @@ export interface WorldStore {
   getInvocation(id: string): Promise<InvocationRecord | null>;
   getInvocationByInvoice(invoiceId: string): Promise<InvocationRecord | null>;
   updateInvocation(id: string, patch: InvocationPatch): Promise<InvocationRecord>;
+  /**
+   * Atomic compare-and-set: applies `patch` only while the invocation is in status `from`.
+   * Returns null when another caller moved it first (the x402 seller relies on this so a
+   * settled payment executes its service exactly once). CONFLICT on a reused tx hash.
+   */
+  transitionInvocation(
+    id: string,
+    from: InvocationStatus,
+    patch: InvocationPatch,
+  ): Promise<InvocationRecord | null>;
+  getInvocationByTxHash(txHash: string): Promise<InvocationRecord | null>;
 
   listOpenJobs(): Promise<JobRecord[]>;
   /** Jobs the agent posted or claimed, any status. */

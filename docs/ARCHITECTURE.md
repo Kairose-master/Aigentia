@@ -147,6 +147,24 @@ BUY_SERVICE decision
 
 Safety checks on the buyer before any PaymentIntent: `network === env.XRPL caip2`, `asset ∈ policy.allowedAssets`, `amount ≤ action.maxPriceDrops` and `≤ service.priceDrops` from our marketplace record, `payTo === seller's registered wallet address`, `extra.facilitator` (if present) `∈ trusted`, `extra.sourceTag === env.X402_SOURCE_TAG` (if present), `maxTimeoutSeconds ≤ env.X402_MAX_TIMEOUT_SECONDS`, `scheme === "exact"`, exactly one `accepts` chosen. Any failure → `X402_UNTRUSTED`/`X402_MALFORMED`, no payment.
 
+### As built (Phase 3)
+
+- The **seller** is `SellerGate` in `@aigentia/game-engine`, mounted by the API. It creates the
+  `service_invocations` row on the 402 (invoice id = invocation id), and on the paid retry:
+  rejects unknown invoices, replays (same hash → stored result, nothing re-runs), and hashes
+  already used by another invocation (409); resolves the payer to a registered agent offline;
+  verifies and settles through the facilitator with its **stored** requirements; proves the
+  settlement with its own `PaymentVerifier`; moves the invocation `quoted → paid` with an atomic
+  compare-and-set; executes the service once; records stats, seller reputation and events.
+- The **buyer** is `X402ServicePurchaser`. The PolicyEngine runs inside `Settlement.pay` before
+  anything is signed; the per-payment adapter builds (Python `/payer/build`), checks
+  (`assertUnsignedPaymentMatches`) and signs the Payment, retries with `PAYMENT-SIGNATURE`, and
+  returns a receipt only after `verifyResult` proves the signed hash on the ledger. The buyer
+  owns the `payments` row; the seller owns the invocation.
+- `SIM_LEDGER=testnet` uses x402 for every BUY_SERVICE. `SIM_LEDGER=mock` keeps the in-process
+  purchaser (the mock ledger is per process); tests opt into x402 on the mock ledger with
+  `buildTestWorld({ x402: true })`, which routes the buyer's HTTP calls into the SellerGate.
+
 ## API (apps/api, Fastify)
 
 ```
@@ -166,6 +184,7 @@ POST /api/admin/experiments            (X-Admin-Token) ExperimentConfig  → Exp
 POST /api/admin/experiments/:id/start | /finish
 POST /api/admin/sim/start | /stop | /tick   (tick = run one tick now)
 POST /services/:id/invoke              x402-protected seller endpoint (402 → PAYMENT-SIGNATURE → 200 + PAYMENT-RESPONSE)
+                                       body { input, tick? } (tick only labels events, clamped)
 ```
 
 Explorer links: `${XRPL_EXPLORER_URL}/transactions/${txHash}` and `/accounts/${address}` for testnet; mock receipts have `explorerUrl: null`.

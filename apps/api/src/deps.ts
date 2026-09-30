@@ -4,6 +4,7 @@ import type {
   Simulation,
   TreasuryInfo,
   WorldStore,
+  SellerGate,
 } from "@aigentia/game-engine";
 import type { Env, Logger } from "@aigentia/shared";
 import type { XrplNetworkConfig } from "@aigentia/xrpl";
@@ -14,6 +15,8 @@ import type { ReadModel } from "./read-model";
 export interface ApiRuntime {
   readonly ledger: "testnet" | "mock";
   readonly sim: Pick<Simulation, "runTick">;
+  /** x402 resource server behind POST /services/:id/invoke. */
+  readonly sellerGate: Pick<SellerGate, "handle">;
   readonly treasury: TreasuryInfo;
   readonly xrplConfig: XrplNetworkConfig | null;
   createAgent(input: CreateAgentInput): Promise<AgentRecord>;

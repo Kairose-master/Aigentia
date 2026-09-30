@@ -3,6 +3,7 @@ import type { PaymentAdapter } from "@aigentia/economy";
 import type { CreateAgentRequest } from "@aigentia/protocol";
 import { envSchema, type Env, type Objective, type ServiceKind } from "@aigentia/shared";
 import type { MockLedger } from "@aigentia/xrpl/testing";
+import type { Facilitator } from "@aigentia/x402";
 import type { Clock } from "../context";
 import { createRuntime, makeBrainFactory, type Runtime } from "../runtime";
 import type { ServiceExecutor } from "../services";
@@ -32,6 +33,12 @@ export interface BuildTestWorldOptions {
   /** Fixed-step clock start; defaults to 2026-01-01T00:00:00Z advancing one second per call. */
   readonly clockStart?: Date;
   readonly env?: Partial<Env>;
+  /**
+   * Buy services over x402: the buyer's HTTP calls are routed in-process to the runtime's
+   * SellerGate, settling through the [MOCK] facilitator on the MockLedger.
+   */
+  readonly x402?: boolean;
+  readonly facilitator?: Facilitator;
 }
 
 export interface TestWorld {
@@ -73,6 +80,20 @@ export async function buildTestWorld(options: BuildTestWorldOptions): Promise<Te
   const defaultBrainFor = makeBrainFactory(env);
   const custom = options.brainFor;
   const brainFor = (agent: AgentRecord): AgentBrain => custom?.(agent) ?? defaultBrainFor(agent);
+  let gate: Runtime["sellerGate"] | null = null;
+  /** fetch() → SellerGate, so the x402 buyer exercises the real HTTP protocol shapes. */
+  const x402Fetch = async (url: string, init?: RequestInit): Promise<Response> => {
+    const match = /\/services\/([^/]+)\/invoke$/.exec(url);
+    if (!gate || !match?.[1]) return Response.json({ code: "NOT_FOUND" }, { status: 404 });
+    const headers = new Headers(init?.headers);
+    const result = await gate.handle({
+      serviceId: match[1],
+      body: typeof init?.body === "string" ? (JSON.parse(init.body) as unknown) : {},
+      paymentHeader: headers.get("payment-signature") ?? undefined,
+      resourceUrl: url,
+    });
+    return Response.json(result.body, { status: result.status, headers: result.headers });
+  };
   const runtime = await createRuntime(env, {
     ledger: "mock",
     store,
@@ -80,7 +101,12 @@ export async function buildTestWorld(options: BuildTestWorldOptions): Promise<Te
     brainFor,
     ...(options.adapter ? { adapter: options.adapter } : {}),
     ...(options.executeService ? { executeService: options.executeService } : {}),
+    ...(options.x402
+      ? { purchaserMode: "x402" as const, fetch: (url, init) => x402Fetch(url, init) }
+      : {}),
+    ...(options.facilitator ? { facilitator: options.facilitator } : {}),
   });
+  gate = runtime.sellerGate;
   await runtime.connect();
   const ledger = runtime.mockLedger;
   if (!ledger) throw new Error("mock ledger missing");

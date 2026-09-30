@@ -1,4 +1,9 @@
-import { AigentiaError, sha256Hex, type ResourceType } from "@aigentia/shared";
+import {
+  AigentiaError,
+  sha256Hex,
+  type InvocationStatus,
+  type ResourceType,
+} from "@aigentia/shared";
 import { worldEventSchema, type WorldEvent, type WorldEventInput } from "@aigentia/protocol";
 import type { GenesisWorld } from "../world";
 import { knowledgeFromStrategy, knowledgeToJson, mergeKnowledge } from "./knowledge";
@@ -258,6 +263,11 @@ export class InMemoryWorldStore implements WorldStore {
 
   async getAgentByName(name: string): Promise<AgentRecord | null> {
     for (const a of this.agents.values()) if (a.name === name) return clone(a);
+    return null;
+  }
+
+  async getAgentByAddress(address: string): Promise<AgentRecord | null> {
+    for (const a of this.agents.values()) if (a.walletAddress === address) return clone(a);
     return null;
   }
 
@@ -540,6 +550,8 @@ export class InMemoryWorldStore implements WorldStore {
       }
     }
     if (patch.status !== undefined) inv.status = patch.status;
+    if (patch.buyerAgentId !== undefined) inv.buyerAgentId = patch.buyerAgentId;
+    if (patch.buyerAddress !== undefined) inv.buyerAddress = patch.buyerAddress;
     if (patch.paymentId !== undefined) inv.paymentId = patch.paymentId;
     if (patch.txHash !== undefined) inv.txHash = patch.txHash;
     if (patch.response !== undefined) inv.response = patch.response ? clone(patch.response) : null;
@@ -547,6 +559,22 @@ export class InMemoryWorldStore implements WorldStore {
     if (patch.error !== undefined) inv.error = patch.error;
     inv.updatedAt = this.clock();
     return clone(inv);
+  }
+
+  async transitionInvocation(
+    id: string,
+    from: InvocationStatus,
+    patch: InvocationPatch,
+  ): Promise<InvocationRecord | null> {
+    const inv = this.invocations.get(id);
+    if (!inv) throw notFound("invocation", id);
+    if (inv.status !== from) return null;
+    return this.updateInvocation(id, patch);
+  }
+
+  async getInvocationByTxHash(txHash: string): Promise<InvocationRecord | null> {
+    for (const inv of this.invocations.values()) if (inv.txHash === txHash) return clone(inv);
+    return null;
   }
 
   // ── jobs ────────────────────────────────────────────────────────────────────
