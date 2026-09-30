@@ -13,7 +13,12 @@ import {
 import { Wallet, isValidClassicAddress, type Transaction } from "xrpl";
 import { rippledErrorCode } from "./client";
 import { getString } from "./internal/tx-parse";
-import type { WalletProvider, XrplNetworkConfig, XrplRequestClient } from "./types";
+import type {
+  EnsureWalletOptions,
+  WalletProvider,
+  XrplNetworkConfig,
+  XrplRequestClient,
+} from "./types";
 
 /** Signer policy: never sign a transaction whose fee could exceed this. */
 export const MAX_SIGNABLE_FEE_DROPS = 100_000n;
@@ -81,7 +86,10 @@ export class EnvWalletProvider implements WalletProvider {
     return w;
   }
 
-  async ensureWallet(walletRef: string): Promise<{ address: string; created: boolean }> {
+  async ensureWallet(
+    walletRef: string,
+    _options?: EnsureWalletOptions,
+  ): Promise<{ address: string; created: boolean }> {
     return { address: this.wallet(walletRef).classicAddress, created: false };
   }
 
@@ -127,6 +135,47 @@ export async function requestFaucetFunding(
       status: response.status,
       body: body.slice(0, 200),
     });
+  }
+}
+
+/** Validated XRP balance of an account in drops; 0n when the account does not exist yet. */
+export async function readBalanceDrops(
+  client: XrplRequestClient,
+  address: string,
+): Promise<bigint> {
+  try {
+    const response = await client.request<{ result?: { account_data?: { Balance?: string } } }>({
+      command: "account_info",
+      account: address,
+      ledger_index: "validated",
+    });
+    const balance = response?.result?.account_data?.Balance;
+    return typeof balance === "string" && /^\d+$/.test(balance) ? BigInt(balance) : 0n;
+  } catch (e) {
+    if (rippledErrorCode(e) === "actNotFound") return 0n;
+    throw e;
+  }
+}
+
+/** Poll until the validated balance exceeds `previousDrops`, or fail with LEDGER_UNAVAILABLE. */
+export async function waitForBalanceAbove(
+  client: XrplRequestClient,
+  address: string,
+  previousDrops: bigint,
+  { timeoutMs = 60_000, intervalMs = 1_000 }: { timeoutMs?: number; intervalMs?: number } = {},
+): Promise<bigint> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const balance = await readBalanceDrops(client, address);
+    if (balance > previousDrops) return balance;
+    if (Date.now() >= deadline) {
+      throw new AigentiaError(
+        "LEDGER_UNAVAILABLE",
+        `faucet funding for ${address} not visible after ${timeoutMs}ms`,
+        { address },
+      );
+    }
+    await sleep(intervalMs);
   }
 }
 
@@ -235,8 +284,13 @@ export class FileWalletProvider implements WalletProvider {
     return next;
   }
 
-  async ensureWallet(walletRef: string): Promise<{ address: string; created: boolean }> {
+  async ensureWallet(
+    walletRef: string,
+    options: EnsureWalletOptions = {},
+  ): Promise<{ address: string; created: boolean }> {
     return this.serial(async () => {
+      // Another process (API vs worker) may have added wallets since we last read the file.
+      this.cache = undefined;
       const entries = await this.load();
       const existing = entries[walletRef];
       if (existing) return { address: existing.address, created: false };
@@ -247,19 +301,42 @@ export class FileWalletProvider implements WalletProvider {
       await this.save({ ...entries, [walletRef]: { seed, address: wallet.classicAddress } });
       this.log.info({ walletRef, address: wallet.classicAddress }, "generated dev wallet");
 
-      await requestFaucetFunding(this.opts.faucetUrl, wallet.classicAddress, this.opts.fetchImpl);
-      if (this.opts.client) {
-        await waitForAccount(this.opts.client, wallet.classicAddress, {
-          timeoutMs: this.opts.fundTimeoutMs ?? 60_000,
-        });
+      if (options.fund) {
+        await requestFaucetFunding(this.opts.faucetUrl, wallet.classicAddress, this.opts.fetchImpl);
+        if (this.opts.client) {
+          await waitForAccount(this.opts.client, wallet.classicAddress, {
+            timeoutMs: this.opts.fundTimeoutMs ?? 60_000,
+          });
+        }
+        this.log.info({ walletRef, address: wallet.classicAddress }, "dev wallet funded");
       }
-      this.log.info({ walletRef, address: wallet.classicAddress }, "dev wallet funded");
       return { address: wallet.classicAddress, created: true };
     });
   }
 
+  /** [DEV ONLY] Ask the faucet to fund an existing wallet again (e.g. a low treasury). */
+  async topUp(walletRef: string): Promise<void> {
+    const address = (await this.wallet(walletRef)).classicAddress;
+    const before = this.opts.client ? await readBalanceDrops(this.opts.client, address) : 0n;
+    await requestFaucetFunding(this.opts.faucetUrl, address, this.opts.fetchImpl);
+    if (this.opts.client) {
+      const after = await waitForBalanceAbove(this.opts.client, address, before, {
+        timeoutMs: this.opts.fundTimeoutMs ?? 60_000,
+      });
+      this.log.info(
+        { walletRef, address, before: String(before), after: String(after) },
+        "dev wallet topped up",
+      );
+    }
+  }
+
   private async wallet(walletRef: string): Promise<Wallet> {
-    const entry = (await this.load())[walletRef];
+    let entry = (await this.load())[walletRef];
+    if (!entry) {
+      // The wallet may have been created by another process since the file was cached.
+      this.cache = undefined;
+      entry = (await this.load())[walletRef];
+    }
     if (!entry) {
       throw new AigentiaError(
         "NOT_FOUND",

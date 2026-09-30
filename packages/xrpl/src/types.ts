@@ -56,13 +56,26 @@ export interface TransactionSubmitter {
   submitAndWait(txBlob: string): Promise<SubmitResult>;
 }
 
+export interface EnsureWalletOptions {
+  /**
+   * Fund a NEWLY created wallet through the Testnet faucet. Only development providers honour
+   * it (the treasury bootstrap uses it); agents are activated by the treasury's funding payment.
+   */
+  readonly fund?: boolean;
+}
+
 export interface WalletProvider {
-  ensureWallet(walletRef: string): Promise<{ address: string; created: boolean }>;
+  ensureWallet(
+    walletRef: string,
+    options?: EnsureWalletOptions,
+  ): Promise<{ address: string; created: boolean }>;
   getAddress(walletRef: string): Promise<string>;
   sign(
     walletRef: string,
     unsignedTx: Record<string, unknown>,
   ): Promise<{ txBlob: string; hash: string }>;
+  /** Development providers only: top an existing wallet up from the faucet. */
+  topUp?(walletRef: string): Promise<void>;
 }
 
 export interface BalanceSnapshot {

@@ -44,7 +44,11 @@ describe("FileWalletProvider [DEV ONLY]", () => {
       fetchImpl,
     });
 
-    const first = await provider.ensureWallet("treasury");
+    const unfunded = await provider.ensureWallet("agent-1");
+    expect(unfunded.created).toBe(true);
+    expect(faucetCalls).toHaveLength(0);
+
+    const first = await provider.ensureWallet("treasury", { fund: true });
     expect(first.created).toBe(true);
     expect(faucetCalls).toEqual([
       `POST https://faucet.test/accounts ${JSON.stringify({ destination: first.address })}`,
@@ -87,7 +91,9 @@ describe("FileWalletProvider [DEV ONLY]", () => {
       faucetUrl: "https://faucet.test",
       fetchImpl,
     });
-    await expect(provider.ensureWallet("x")).rejects.toMatchObject({ code: "LEDGER_UNAVAILABLE" });
+    await expect(provider.ensureWallet("x", { fund: true })).rejects.toMatchObject({
+      code: "LEDGER_UNAVAILABLE",
+    });
   });
 });
 

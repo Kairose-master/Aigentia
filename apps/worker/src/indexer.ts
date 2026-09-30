@@ -2,7 +2,7 @@ import { ledgerTransactions, payments, type Database } from "@aigentia/db";
 import type { WorldStore } from "@aigentia/game-engine";
 import { errorMessage, type Logger } from "@aigentia/shared";
 import type { LedgerTxRecord, TransactionIndexer } from "@aigentia/xrpl";
-import { inArray } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 
 export interface LedgerIndexDeps {
   readonly db: Database;
@@ -82,6 +82,7 @@ export async function indexLedger(deps: LedgerIndexDeps): Promise<LedgerIndexRes
   );
   const fresh = hashes.filter((h) => !known.has(h));
   if (fresh.length === 0) {
+    await relinkPayments(deps.db);
     return { addresses: addresses.size, fetched: hashes.length, inserted: 0, failedAddresses };
   }
   const paymentByHash = new Map<string, string>();
@@ -101,6 +102,7 @@ export async function indexLedger(deps: LedgerIndexDeps): Promise<LedgerIndexRes
     .values(rows)
     .onConflictDoNothing()
     .returning({ txHash: ledgerTransactions.txHash });
+  await relinkPayments(deps.db);
   deps.logger?.info(
     { addresses: addresses.size, fetched: hashes.length, inserted: inserted.length },
     "ledger indexed",
@@ -111,4 +113,17 @@ export async function indexLedger(deps: LedgerIndexDeps): Promise<LedgerIndexRes
     inserted: inserted.length,
     failedAddresses,
   };
+}
+
+/**
+ * Link ledger rows that were indexed before the game recorded the payment carrying the same
+ * hash (e.g. a payment still being written when the indexer ran). Idempotent.
+ */
+export async function relinkPayments(db: Database): Promise<void> {
+  await db.execute(sql`
+    UPDATE ${ledgerTransactions} AS lt
+       SET payment_id = p.id
+      FROM ${payments} AS p
+     WHERE lt.payment_id IS NULL
+       AND p.tx_hash = lt.tx_hash`);
 }

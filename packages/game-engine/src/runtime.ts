@@ -13,6 +13,7 @@ import {
   AigentiaError,
   DROPS_PER_XRP,
   createLogger,
+  xrpToDrops,
   type Env,
   type Logger,
 } from "@aigentia/shared";
@@ -87,6 +88,9 @@ export interface Runtime {
 }
 
 /** Brain per agent, cached: deterministic or LLM according to the agent row and LLM_* env. */
+/** Fee and reserve headroom the treasury keeps above any single funding payment. */
+const TREASURY_HEADROOM_DROPS = 2_000_000n;
+
 export function makeBrainFactory(env: Env, logger?: Logger): (agent: AgentRecord) => AgentBrain {
   const cache = new Map<string, AgentBrain>();
   return (agent) => {
@@ -239,6 +243,21 @@ export async function createRuntime(env: Env, options: RuntimeOptions): Promise<
     logger,
   });
 
+  /** [DEV] Top the treasury up from the faucet when it cannot cover the next funding. */
+  const ensureTreasuryCovers = async (capitalXrp: number): Promise<void> => {
+    if (!walletProvider.topUp || options.ledger !== "testnet") return;
+    const needed = xrpToDrops(capitalXrp) + TREASURY_HEADROOM_DROPS;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { spendableDrops } = await balances.getBalanceDrops(treasury.address);
+      if (spendableDrops >= needed) return;
+      logger.warn(
+        { spendableDrops: spendableDrops.toString(), needed: needed.toString() },
+        "treasury low; requesting Testnet faucet top-up",
+      );
+      await walletProvider.topUp(treasury.walletRef);
+    }
+  };
+
   const runtime: Runtime = {
     ledger: options.ledger,
     store,
@@ -261,14 +280,16 @@ export async function createRuntime(env: Env, options: RuntimeOptions): Promise<
         await client.assertNetwork();
       }
       if (!treasury.address) {
-        const { address } = await walletProvider.ensureWallet(treasury.walletRef);
+        // Only the treasury is faucet-funded; agents are activated by its funding payment.
+        const { address } = await walletProvider.ensureWallet(treasury.walletRef, { fund: true });
         treasury.address = address;
       }
     },
-    createAgent(input: CreateAgentInput): Promise<AgentRecord> {
+    async createAgent(input: CreateAgentInput): Promise<AgentRecord> {
       if (!treasury.address) {
         throw new AigentiaError("VALIDATION_FAILED", "runtime not connected: call connect() first");
       }
+      await ensureTreasuryCovers(input.startingCapitalXrp ?? 10);
       return createAgent(
         store,
         {

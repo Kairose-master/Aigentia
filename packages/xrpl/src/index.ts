@@ -8,6 +8,8 @@ export {
   assertSignablePayment,
   requestFaucetFunding,
   waitForAccount,
+  readBalanceDrops,
+  waitForBalanceAbove,
   MAX_SIGNABLE_FEE_DROPS,
 } from "./wallet-provider";
 export type {

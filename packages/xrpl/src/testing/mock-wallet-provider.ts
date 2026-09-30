@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { Wallet } from "xrpl";
 import { assertSignablePayment } from "../wallet-provider";
-import type { WalletProvider } from "../types";
+import type { WalletProvider, EnsureWalletOptions } from "../types";
 
 /**
  * [MOCK] Deterministic wallets for tests: entropy = sha256(salt | walletRef)[0..16], so the
@@ -29,7 +29,10 @@ export class MockWalletProvider implements WalletProvider {
     return w;
   }
 
-  async ensureWallet(walletRef: string): Promise<{ address: string; created: boolean }> {
+  async ensureWallet(
+    walletRef: string,
+    _options?: EnsureWalletOptions,
+  ): Promise<{ address: string; created: boolean }> {
     const created = !this.wallets.has(walletRef);
     return { address: this.wallet(walletRef).classicAddress, created };
   }
