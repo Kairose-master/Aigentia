@@ -1,0 +1,26 @@
+# Never ship local secrets or state into an image.
+.git
+.aigentia
+.env
+.env.*
+!.env.example
+**/wallets*.json
+dump.rdb
+*.log
+
+# Build artifacts and dependencies are rebuilt inside the image.
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/test-results
+**/playwright-report
+services/x402-xrpl/.venv
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+
+# Not needed by the backend container.
+docs/screenshots
+apps/web/src/snapshot

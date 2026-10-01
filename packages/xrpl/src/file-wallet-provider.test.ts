@@ -2,7 +2,9 @@ import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { loadEnv } from "@aigentia/shared";
+import { createLogger, loadEnv } from "@aigentia/shared";
+
+const silentLogger = createLogger("test", "silent");
 import {
   EnvWalletProvider,
   FileWalletProvider,
@@ -117,5 +119,21 @@ describe("createWalletProvider", () => {
     expect(() => createWalletProvider({ ...base, NODE_ENV: "production" }, cfg)).toThrow(
       /DEV ONLY/,
     );
+    // A hosted Testnet demo can opt in explicitly; nothing else unlocks it.
+    expect(
+      createWalletProvider(
+        {
+          ...base,
+          NODE_ENV: "production",
+          XRPL_FILE_WALLET_ACK: "testnet-only",
+          XRPL_WALLET_FILE: join(dir, "w.json"),
+        },
+        cfg,
+        { logger: silentLogger },
+      ),
+    ).toBeInstanceOf(FileWalletProvider);
+    expect(() =>
+      loadEnv({ NODE_ENV: "production", XRPL_FILE_WALLET_ACK: "yes" }, { reload: true }),
+    ).toThrow(/XRPL_FILE_WALLET_ACK/);
   });
 });

@@ -41,7 +41,12 @@ export function tickLockTtlMs(tickSeconds: number): number {
 
 /** BullMQ requires `maxRetriesPerRequest: null` on the connections it blocks on. */
 export function createRedis(url: string, logger?: Logger): Redis {
-  const redis = new Redis(url, { maxRetriesPerRequest: null, enableOfflineQueue: true });
+  const redis = new Redis(url, {
+    maxRetriesPerRequest: null,
+    enableOfflineQueue: true,
+    // Dual-stack DNS: Railway private networking (and others) may resolve to IPv6 only.
+    family: 0,
+  });
   redis.on("error", (e) => logger?.error({ error: errorMessage(e) }, "redis error"));
   return redis;
 }

@@ -25,8 +25,8 @@ export class RedisEventBus implements EventBus {
   constructor(url: string, options: RedisEventBusOptions = {}) {
     this.channel = options.channel ?? REDIS_EVENT_CHANNEL;
     this.logger = options.logger;
-    this.publisher = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 3 });
-    this.subscriber = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: null });
+    this.publisher = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 3, family: 0 });
+    this.subscriber = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: null, family: 0 });
     this.subscriber.on("message", (channel: string, message: string) => {
       if (channel !== this.channel) return;
       this.dispatch(message);

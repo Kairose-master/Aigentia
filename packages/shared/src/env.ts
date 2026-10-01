@@ -35,6 +35,8 @@ export const envSchema = z.object({
   XRPL_WALLET_PROVIDER: z.enum(["env", "file"]).default("file"),
   XRPL_WALLET_FILE: z.string().default(".aigentia/wallets.dev.json"),
   XRPL_WALLET_SEEDS: z.string().default(""),
+  /** "testnet-only" lets the DEV file wallet provider run with NODE_ENV=production (hosted demo). */
+  XRPL_FILE_WALLET_ACK: z.enum(["", "testnet-only"]).default(""),
   TREASURY_WALLET_REF: z.string().min(1).default("treasury"),
 
   X402_SERVICE_URL: z.url().default("http://localhost:8402"),

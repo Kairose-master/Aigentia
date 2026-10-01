@@ -377,9 +377,18 @@ export function createWalletProvider(
     return new EnvWalletProvider(parseWalletSeeds(env.XRPL_WALLET_SEEDS));
   }
   if (env.NODE_ENV === "production") {
-    throw new AigentiaError(
-      "VALIDATION_FAILED",
-      "XRPL_WALLET_PROVIDER=file is DEV ONLY; use XRPL_WALLET_PROVIDER=env in production",
+    // A hosted Testnet demo may knowingly keep faucet-funded seeds on its own volume; that has
+    // to be an explicit, named decision. Mainnet is refused earlier by loadEnv/xrplConfigFromEnv.
+    if (env.XRPL_FILE_WALLET_ACK !== "testnet-only" || config.networkId === 0) {
+      throw new AigentiaError(
+        "VALIDATION_FAILED",
+        "XRPL_WALLET_PROVIDER=file is DEV ONLY; use XRPL_WALLET_PROVIDER=env in production, " +
+          "or set XRPL_FILE_WALLET_ACK=testnet-only to accept Testnet seeds on disk",
+      );
+    }
+    (deps.logger ?? createLogger("xrpl.wallet-provider")).warn(
+      { filePath: env.XRPL_WALLET_FILE, network: config.name },
+      "XRPL_FILE_WALLET_ACK=testnet-only: Testnet wallet seeds are stored on this server's disk",
     );
   }
   return new FileWalletProvider({

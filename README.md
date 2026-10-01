@@ -254,6 +254,9 @@ Python payment service need long-running processes, so they are not hosted on Ve
 - **Live mode** (default): set `NEXT_PUBLIC_API_URL` to a publicly reachable API and remove
   `NEXT_PUBLIC_DATA_MODE`. The dashboard then follows the economy over SSE.
 
+The backend deploys to Railway as one service (API, worker and payment service in one
+container) plus Postgres and Redis: see [docs/DEPLOY_RAILWAY.md](docs/DEPLOY_RAILWAY.md).
+
 ## Environment
 
 All variables are validated at startup by `@aigentia/shared` (`loadEnv()`); see [`.env.example`](.env.example) for the complete, documented list. The important ones:
