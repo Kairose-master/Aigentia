@@ -28,6 +28,21 @@ if (!env.API_PUBLIC_URL && env.RAILWAY_PUBLIC_DOMAIN) {
 env.X402_SERVICE_PORT ??= "8402";
 env.X402_SERVICE_URL ??= `http://127.0.0.1:${env.X402_SERVICE_PORT}`;
 
+// LOG_LEVEL is shared: Node uses pino names, the Python service expects logging names.
+const PY_LOG_LEVEL = {
+  fatal: "CRITICAL",
+  error: "ERROR",
+  warn: "WARNING",
+  info: "INFO",
+  debug: "DEBUG",
+  trace: "DEBUG",
+  silent: "CRITICAL",
+};
+const pythonEnv = {
+  ...env,
+  LOG_LEVEL: PY_LOG_LEVEL[(env.LOG_LEVEL ?? "info").toLowerCase()] ?? "INFO",
+};
+
 const log = (msg, extra = {}) =>
   console.log(
     JSON.stringify({ name: "supervisor", time: new Date().toISOString(), msg, ...extra }),
@@ -78,8 +93,10 @@ function bin(dir, name) {
   return resolve(root, dir, "node_modules/.bin", name);
 }
 
-function start(name, command, args, cwd) {
-  const child = spawn(command, args, { cwd: resolve(root, cwd), env, stdio: "inherit" });
+function start(name, command, args, cwd, childEnv = env) {
+  // Never spawn once shutdown began: a late API + worker pair would race on the treasury.
+  if (stopping) throw new Error(`not starting ${name}: shutting down`);
+  const child = spawn(command, args, { cwd: resolve(root, cwd), env: childEnv, stdio: "inherit" });
   children.set(name, child);
   child.on("exit", (code, signal) => {
     children.delete(name);
@@ -103,7 +120,7 @@ function run(name, command, args, cwd) {
 async function waitHealthy(name, url, timeoutMs) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (stopping) return;
+    if (stopping) throw new Error(`stopped while waiting for ${name}`);
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
       if (res.ok) {
@@ -121,12 +138,14 @@ async function waitHealthy(name, url, timeoutMs) {
 function shutdown(code) {
   if (stopping) return;
   stopping = true;
+  log("stopping", { exitCode: code, running: [...children.keys()] });
   // Stop in reverse start order: worker first, the payment service last.
   for (const name of ["worker", "api", "x402"]) children.get(name)?.kill("SIGTERM");
+  // Inside Railway's drainingSeconds (30s in railway.json), so an in-flight tick can finish.
   const timer = setTimeout(() => {
     for (const child of children.values()) child.kill("SIGKILL");
     process.exit(code);
-  }, 15_000);
+  }, 25_000);
   const check = setInterval(() => {
     if (children.size === 0) {
       clearInterval(check);
@@ -149,6 +168,7 @@ try {
     env.X402_UVICORN ?? "uvicorn",
     ["app.main:app", "--host", "127.0.0.1", "--port", env.X402_SERVICE_PORT],
     "services/x402-xrpl",
+    pythonEnv,
   );
   await waitHealthy("x402", `${env.X402_SERVICE_URL}/health`, 90_000);
 
@@ -158,6 +178,8 @@ try {
   start("worker", bin("apps/worker", "tsx"), ["src/main.ts"], "apps/worker");
   log("all processes running", { apiPublicUrl: env.API_PUBLIC_URL, port: env.API_PORT });
 } catch (e) {
-  log("boot failed", { error: e instanceof Error ? e.message : String(e) });
-  shutdown(1);
+  if (!stopping) {
+    log("boot failed", { error: e instanceof Error ? e.message : String(e) });
+    shutdown(1);
+  }
 }

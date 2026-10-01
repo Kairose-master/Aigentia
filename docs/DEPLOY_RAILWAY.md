@@ -35,7 +35,10 @@ payments, so both need the same wallet file, and a Railway volume attaches to a 
    | `XRPL_FILE_WALLET_ACK` | `testnet-only`                              |
 
    Optional: `TICK_SECONDS` (default 60), `XRPL_WSS_URL` / `XRPL_RPC_URL` (default
-   `testnet.xrpl-labs.com`), `LLM_PROVIDER` + key for LLM brains.
+   `testnet.xrpl-labs.com`), `LOG_LEVEL` (pino names: `info`, `warn`, `debug`…; translated for
+   the Python service), and for LLM brains `LLM_PROVIDER` with `ANTHROPIC_API_KEY` or
+   `OPENAI_API_KEY` plus `LLM_MODEL` (required for `openai`; `anthropic` defaults to
+   `claude-fable-5-1`).
 
    `XRPL_FILE_WALLET_ACK=testnet-only` is a deliberate acknowledgement: the treasury and agent
    wallets are generated on first use, funded from the Testnet faucet and their seeds live in
@@ -63,7 +66,10 @@ payments, so both need the same wallet file, and a Railway volume attaches to a 
 
 - If any of the three processes exits, the supervisor stops the others and exits non-zero, and
   Railway restarts the container (`restartPolicyType: ON_FAILURE`).
-- Redeploys stop the processes gracefully (SIGTERM). Railway volumes cause a short downtime on
+- Redeploys stop the processes gracefully: `railway.json` sets `drainingSeconds: 30` (Railway's
+  default is an immediate SIGKILL), the supervisor forwards SIGTERM and only force-kills after
+  25 s, so an in-flight tick can finish its payments. Railway volumes cause a short downtime on
   redeploy and do not allow replicas, so this service runs as a single instance.
+- A dropped Postgres connection is replaced instead of crashing the process.
 - The supervisor refuses to boot with missing variables, placeholder tokens, or file wallets in
   production without the acknowledgement.
