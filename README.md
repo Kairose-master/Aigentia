@@ -240,6 +240,8 @@ pnpm test:testnet                            # opt-in: real XRPL Testnet round t
 
 ## Deploying the dashboard (Vercel)
 
+Public dashboard (snapshot mode): **https://aigentia-khaki.vercel.app**
+
 The spectator dashboard deploys to Vercel as a Next.js project with root directory `apps/web`
 (`apps/web/vercel.json` installs the pnpm workspace). The API, worker, Postgres, Redis and the
 Python payment service need long-running processes, so they are not hosted on Vercel.
